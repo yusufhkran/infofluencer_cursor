@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import apiService from '../services/api';
 
@@ -28,8 +28,8 @@ const RegisterPage = () => {
     'gmx.com', 'web.de', 'fastmail.com', 'hushmail.com'
   ];
 
-  // Email validation function
-  const validateCompanyEmail = (email) => {
+  // Email validation function - useCallback ile memoize edildi
+  const validateCompanyEmail = useCallback((email) => {
     if (!email || !email.includes('@')) {
       return {
         isValid: false,
@@ -91,9 +91,9 @@ const RegisterPage = () => {
       isChecked: true,
       message: 'Valid company email address ✓'
     };
-  };
+  }, [PERSONAL_EMAIL_DOMAINS]); // Dependency sadece PERSONAL_EMAIL_DOMAINS
 
-  // Real-time email validation
+  // Real-time email validation - artık ESLint happy!
   useEffect(() => {
     if (formData.email) {
       const validation = validateCompanyEmail(formData.email);
@@ -105,7 +105,7 @@ const RegisterPage = () => {
         message: ''
       });
     }
-  }, [formData.email]);
+  }, [formData.email, validateCompanyEmail]); // ✅ Her iki dependency de mevcut
 
   const handleInputChange = (e) => {
     setFormData({
