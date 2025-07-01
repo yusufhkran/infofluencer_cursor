@@ -5,9 +5,24 @@ const API_BASE_URL = 'http://127.0.0.1:8000';
 const ENDPOINTS = {
   LOGIN: '/api/auth/login/',
   REGISTER: '/api/auth/register/',
-  REFRESH: '/api/auth/token/refresh/',
-  USER_PROFILE: '/api/auth/user/',
+  REFRESH: '/api/auth/refresh/',
+  USER_PROFILE: '/api/auth/profile/',
   LOGOUT: '/api/auth/logout/',
+};
+
+// Error message mapping for professional messages
+const ERROR_MESSAGES = {
+  'Invalid email or password': 'The email or password you entered is incorrect. Please try again.',
+  'This account is not a company account': 'This account is registered as an influencer. Please use the influencer login.',
+  'This account is not an influencer account': 'This account is registered as a company. Please use the company login.',
+  'User account is disabled': 'Your account has been disabled. Please contact support for assistance.',
+  'Invalid user type': 'Please select a valid account type.',
+  'A user with this email already exists.': 'An account with this email address already exists. Please use a different email or try logging in.',
+  'Password must be at least 8 characters long': 'Your password must be at least 8 characters long.',
+  'API request failed': 'We\'re experiencing technical difficulties. Please try again in a moment.',
+  'Network error occurred. Please try again.': 'Unable to connect to our servers. Please check your internet connection and try again.',
+  'Authentication failed': 'Your session has expired. Please log in again.',
+  'Failed to fetch user profile': 'Unable to load your profile information. Please refresh the page.'
 };
 
 // Token management utilities
@@ -30,6 +45,26 @@ export const tokenUtils = {
 
 // HTTP request wrapper with automatic token handling
 class ApiService {
+  // Helper method to get user-friendly error messages
+  getUserFriendlyError(error, isRegister = false) {
+    const errorMessage = error.message || 'An unexpected error occurred';
+    
+    // Handle validation errors with field-specific messages
+    if (typeof errorMessage === 'object') {
+      if (errorMessage.email) {
+        return errorMessage.email;
+      }
+      if (errorMessage.password) {
+        return errorMessage.password;
+      }
+      if (errorMessage.non_field_errors) {
+        return errorMessage.non_field_errors[0];
+      }
+    }
+    
+    return ERROR_MESSAGES[errorMessage] || errorMessage;
+  }
+
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = tokenUtils.getAccessToken();
@@ -71,12 +106,41 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || data.message || 'API request failed');
+        // Handle different types of error responses
+        let errorMessage = 'API request failed';
+        
+        if (data.email && Array.isArray(data.email)) {
+          errorMessage = data.email[0];
+        } else if (data.password && Array.isArray(data.password)) {
+          errorMessage = data.password[0];
+        } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
+          errorMessage = data.non_field_errors[0];
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else if (typeof data === 'object') {
+          // Handle field-specific errors
+          const firstErrorField = Object.keys(data)[0];
+          if (firstErrorField && Array.isArray(data[firstErrorField])) {
+            errorMessage = data[firstErrorField][0];
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       return data;
     } catch (error) {
       console.error('API request error:', error);
+      
+      // Handle network errors
+      if (!navigator.onLine) {
+        throw new Error('Network error occurred. Please try again.');
+      }
+      
       throw error;
     }
   }
@@ -112,7 +176,7 @@ class ApiService {
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Login failed'
+        message: this.getUserFriendlyError(error)
       };
     }
   }
@@ -124,22 +188,22 @@ class ApiService {
         body: JSON.stringify({
           email: userData.email,
           password: userData.password,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
           company: userData.company,
-          user_type: userData.userType || 'company',
+          userType: userData.userType || 'company',
         }),
       });
 
       return {
         success: true,
         data: response,
-        message: 'Registration successful'
+        message: 'Your account has been created successfully! Please log in to continue.'
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Registration failed'
+        message: this.getUserFriendlyError(error)
       };
     }
   }
@@ -211,7 +275,7 @@ class ApiService {
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to fetch user profile'
+        message: this.getUserFriendlyError(error)
       };
     }
   }
