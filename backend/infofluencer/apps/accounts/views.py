@@ -1,4 +1,4 @@
-# apps/accounts/views.py
+# backend/infofluencer/apps/accounts/views.py
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -20,7 +20,7 @@ def register(request):
             'message': 'User created successfully',
             'user_id': user.id,
             'email': user.email,
-            'user_type': request.data.get('user_type')
+            'user_type': request.data.get('userType')
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

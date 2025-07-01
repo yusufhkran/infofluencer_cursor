@@ -1,4 +1,4 @@
-# apps/accounts/serializers.py
+# backend/infofluencer/apps/accounts/serializers.py
 
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -13,7 +13,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         # Email field ekle
         self.fields['email'] = serializers.EmailField()
-        self.fields['user_type'] = serializers.CharField()
+        self.fields['user_type'] = serializers.CharField()  # Frontend: user_type (LoginPage.js'te)
         
         # Username field'ı varsa sil
         if 'username' in self.fields:
@@ -78,52 +78,45 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         return token
 
-# UserRegistrationSerializer aynı kalacak...
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True)
-    user_type = serializers.ChoiceField(choices=['company', 'influencer'])
+class UserRegistrationSerializer(serializers.Serializer):
+    # Frontend'den gelen field isimleri - RegisterPage.js'te kullanılan
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=8)
+    firstName = serializers.CharField(max_length=100)
+    lastName = serializers.CharField(max_length=100)
+    company = serializers.CharField(max_length=200, required=False)  # Company için
+    userType = serializers.ChoiceField(choices=['company', 'influencer'])
     
-    class Meta:
-        model = User
-        fields = ['email', 'first_name', 'last_name', 'password', 'password_confirm', 'user_type']
-    
-    def validate(self, attrs):
-        if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError("Passwords don't match")
-        
-        if User.objects.filter(email=attrs['email']).exists():
-            raise serializers.ValidationError("Email already exists")
-        
-        return attrs
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError('A user with this email already exists.')
+        return value
     
     def create(self, validated_data):
-        user_type = validated_data.pop('user_type')
-        validated_data.pop('password_confirm')
-        
-        # Create user
+        # User oluştur - Django User modeli için first_name/last_name kullan
         user = User.objects.create_user(
-            username=validated_data['email'],
+            username=validated_data['email'],  # Username olarak email kullan
             email=validated_data['email'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name'],
-            password=validated_data['password']
+            password=validated_data['password'],
+            first_name=validated_data['firstName'],
+            last_name=validated_data['lastName']
         )
         
-        # Create profile based on user type
-        if user_type == 'company':
+        # User type'a göre profile oluştur - mevcut model yapınızı kullanarak
+        if validated_data['userType'] == 'company':
             CompanyProfile.objects.create(
                 user=user,
-                work_email=validated_data['email'],
-                first_name=validated_data['first_name'],
-                last_name=validated_data['last_name']
+                work_email=validated_data['email'],  # Mevcut model: work_email
+                first_name=validated_data['firstName'],  # Mevcut model: first_name
+                last_name=validated_data['lastName']  # Mevcut model: last_name
             )
-        elif user_type == 'influencer':
+        elif validated_data['userType'] == 'influencer':
             InfluencerProfile.objects.create(
                 user=user,
-                email=validated_data['email'],
-                first_name=validated_data['first_name'],
-                last_name=validated_data['last_name']
+                email=validated_data['email'],  # Mevcut model: email
+                first_name=validated_data['firstName'],  # Mevcut model: first_name
+                last_name=validated_data['lastName']  # Mevcut model: last_name
+                # instagram_handle ve youtube_channel_id boş bırakılacak (nullable)
             )
         
         return user
