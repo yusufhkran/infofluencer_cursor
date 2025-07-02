@@ -1,7 +1,29 @@
-.env
-*.env
-.env.local
-*.sqlite3
+# Python bytecode ve önbellek klasörleri
 __pycache__/
-node_modules/
+*.py[cod]
+*.pyo
+
+# SQLite veritabanı
+*.sqlite3
+*.db
+
+# Ortam dosyaları
+.env
+.env.*
+
+# VSCode ayarları
+.vscode/
+
+# Sanal ortam klasörleri
+venv/
+Venv/
+.venv/
+
+# OS ve IDE dosyaları
+.DS_Store
+Thumbs.db
+
+# Log dosyaları
+*.log
+
 .history
