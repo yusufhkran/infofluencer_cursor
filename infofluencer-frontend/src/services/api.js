@@ -291,6 +291,229 @@ class ApiService {
     return userData ? JSON.parse(userData) : null;
   }
 }
+// Mevcut api.js dosyasının sonuna ekle
+
+// Analytics API methods
+const analyticsApi = {
+  // Connection status
+  checkConnections: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/analytics/connections/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to check connections' };
+      }
+    } catch (error) {
+      console.error('Connection check error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // GA4 Authentication
+  startGA4Auth: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/auth/ga4/start/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to start GA4 auth' };
+      }
+    } catch (error) {
+      console.error('GA4 auth error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  saveGA4PropertyId: async (propertyId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/auth/ga4/property/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ property_id: propertyId })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to save property ID' };
+      }
+    } catch (error) {
+      console.error('Save property ID error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // YouTube Authentication
+  startYouTubeAuth: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/auth/youtube/start/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to start YouTube auth' };
+      }
+    } catch (error) {
+      console.error('YouTube auth error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // GA4 Reports
+  runGA4Report: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/ga4/run/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ report_type: reportType })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to run GA4 report' };
+      }
+    } catch (error) {
+      console.error('GA4 report error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  getGA4Data: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=ga4&report_type=${reportType}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'No data found' };
+      }
+    } catch (error) {
+      console.error('Get GA4 data error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // YouTube Reports
+  runYouTubeReport: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/youtube/run/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ report_type: reportType })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to run YouTube report' };
+      }
+    } catch (error) {
+      console.error('YouTube report error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  getYouTubeData: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=youtube&report_type=${reportType}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'No data found' };
+      }
+    } catch (error) {
+      console.error('Get YouTube data error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Analytics Dashboard
+  getAnalyticsDashboard: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/analytics/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to load analytics dashboard' };
+      }
+    } catch (error) {
+      console.error('Analytics dashboard error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  }
+};
+
+// Export analytics API
+export { analyticsApi };
 
 // Create and export a singleton instance
 const apiService = new ApiService();

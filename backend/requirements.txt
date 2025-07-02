@@ -1,11 +1,62 @@
-# requirements.txt şöyle görünmeli:
-Django
-djangorestframework
-djangorestframework-simplejwt
-django-cors-headers
-psycopg2-binary
-python-dotenv
-google-auth
-google-auth-oauthlib
-google-api-python-client
-django-extensions
+# Core Django
+Django==4.2.7
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.0
+
+# Database
+psycopg2-binary==2.9.9
+
+# CORS
+django-cors-headers==4.3.1
+
+# Environment
+python-dotenv==1.0.0
+
+# Django Extensions (optional, useful for development)
+django-extensions==3.2.3
+
+# Google API Libraries
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+google-api-python-client==2.108.0
+
+# Google Analytics Data API
+google-analytics-data==0.18.2
+
+# YouTube Analytics API (included in google-api-python-client)
+# google-api-python-client already includes YouTube APIs
+
+# Data Processing (if needed for reports)
+pandas==2.1.3
+numpy==1.25.2
+
+# HTTP Requests (backup for API calls)
+requests==2.31.0
+
+# JSON handling improvements
+orjson==3.9.10
+
+# Caching (optional, for performance)
+redis==5.0.1
+django-redis==5.4.0
+
+# Production Server (optional)
+gunicorn==21.2.0
+
+# Development Tools (optional)
+ipython==8.17.2
+django-debug-toolbar==4.2.0
+
+# Testing (optional)
+pytest==7.4.3
+pytest-django==4.7.0
+factory-boy==3.3.0
+
+# Security (production)
+django-environ==0.11.2
+cryptography==41.0.7
+
+# Background Tasks (optional, for heavy reports)
+celery==5.3.4
+django-celery-beat==2.5.0

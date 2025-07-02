@@ -31,8 +31,8 @@ INSTALLED_APPS = [
     
     # Local Apps
     'apps.accounts',
-    #'apps.company',
-    #'apps.influencer',
+    'apps.company',
+    'apps.influencer',
 ]
 
 MIDDLEWARE = [
@@ -146,3 +146,32 @@ CORS_ALLOWED_ORIGINS = os.getenv(
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Sadece development'ta
+
+# OAuth Settings
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+
+YOUTUBE_CLIENT_ID = os.getenv('YOUTUBE_CLIENT_ID', GOOGLE_CLIENT_ID)  # Aynı client kullanılabilir
+YOUTUBE_CLIENT_SECRET = os.getenv('YOUTUBE_CLIENT_SECRET', GOOGLE_CLIENT_SECRET)
+
+# Frontend URL for redirects
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
+# Google Analytics & YouTube API ayarları
+GA4_SCOPES = [
+    'https://www.googleapis.com/auth/analytics.readonly',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email'
+]
+
+YOUTUBE_SCOPES = [
+    'https://www.googleapis.com/auth/youtube.readonly',
+    'https://www.googleapis.com/auth/yt-analytics.readonly',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email'
+]
+
+# OAuth için güvenlik ayarı (sadece development)
+if DEBUG:
+    import os
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
