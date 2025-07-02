@@ -1,8 +1,7 @@
 .env
-.history
-
-backend/.env
-
 *.env
-
+.env.local
 *.sqlite3
+__pycache__/
+node_modules/
+.history
