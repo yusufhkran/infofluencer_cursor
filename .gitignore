@@ -1,2 +1,6 @@
 .env
 .history
+
+backend/.env
+
+*.env
