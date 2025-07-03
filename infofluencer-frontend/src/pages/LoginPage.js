@@ -14,14 +14,20 @@ const LoginPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    // Check for success message from registration
+    // Check for success message from registration (location.state)
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
-      // Clear the message from location state
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
-
+    
+    // Check for success message from localStorage (fallback)
+    const storedMessage = localStorage.getItem('register_success_message');
+    if (storedMessage) {
+      setSuccessMessage(storedMessage);
+      localStorage.removeItem('register_success_message'); // Clean up
+    }
+  }, [location])
+  
   const handleInputChange = (e) => {
     setFormData({
       ...formData,

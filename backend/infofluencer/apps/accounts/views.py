@@ -14,18 +14,27 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
+    print("🚀 BACKEND REGISTER CALLED")
+    print(f"📋 Request data: {request.data}")
+    
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
+        print("✅ Serializer is valid")
         user = serializer.save()
-        return Response({
+        print(f"✅ User created: {user}")
+        
+        response_data = {
             'message': 'User created successfully',
             'user_id': user.id,
             'email': user.email,
             'user_type': request.data.get('userType')
-        }, status=status.HTTP_201_CREATED)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        }
+        
+        print(f"📤 Sending response: {response_data}")
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    else:
+        print(f"❌ Serializer errors: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 @api_view(['GET'])
 def user_profile(request):
     """Get current user profile"""
@@ -80,3 +89,24 @@ def user_profile(request):
         'user_type': user_type,
         'profile': profile_data
     })
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    """Logout user by blacklisting refresh token"""
+    try:
+        refresh_token = request.data.get('refresh')
+        if refresh_token:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        
+        return Response({
+            'success': True,
+            'message': 'Successfully logged out'
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': 'Logout failed'
+        }, status=status.HTTP_400_BAD_REQUEST)

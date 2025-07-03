@@ -122,7 +122,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 @api_view(['GET'])
-@permission_classes([AllowAny])  # ✅ Explicit AllowAny
+@permission_classes([AllowAny])
 def ga4_auth_callback(request):
     print("🚀🚀🚀 GA4 CALLBACK ÇALIŞTI - AUTHENTICATION BYPASS! 🚀🚀🚀")
     
@@ -143,28 +143,36 @@ def ga4_auth_callback(request):
 
         print(f"✅ State doğrulandı - Company: {company_profile}")
 
-        # Flow oluştur
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": settings.GOOGLE_CLIENT_ID,
-                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token"
-                }
-            },
-            scopes=[
-                'https://www.googleapis.com/auth/analytics.readonly',
-                'openid',
-                'https://www.googleapis.com/auth/userinfo.email'
-            ],
-            state=state,
-            redirect_uri="http://127.0.0.1:8000/api/company/auth/ga4/callback/"
-        )
+        # ✅ FIX: URL'den tüm scope'ları al ve flow'u onlarla oluştur
+        full_scope_string = request.GET.get('scope', '')
+        returned_scopes = full_scope_string.replace('%20', ' ').split()
+        
+        print(f"🔍 Returned scopes: {returned_scopes}")
 
-        # Token al
-        flow.fetch_token(authorization_response=request.build_absolute_uri())
-        credentials = flow.credentials
+        # ✅ Manuel token exchange (scope validation bypass)
+        import requests
+        from datetime import datetime, timedelta
+        
+        token_url = "https://oauth2.googleapis.com/token"
+        token_data = {
+            'client_id': settings.GOOGLE_CLIENT_ID,
+            'client_secret': settings.GOOGLE_CLIENT_SECRET,
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': "http://127.0.0.1:8000/api/company/auth/ga4/callback/"
+        }
+        
+        response = requests.post(token_url, data=token_data)
+        token_response = response.json()
+        
+        if response.status_code != 200:
+            print(f"❌ Token exchange failed: {token_response}")
+            frontend_url = f"{settings.FRONTEND_URL}/analytics?error=token_exchange_failed"
+            return HttpResponseRedirect(frontend_url)
+        
+        # Token expiry hesapla
+        expires_in = token_response.get('expires_in', 3600)  # Default 1 hour
+        token_expiry = datetime.now() + timedelta(seconds=expires_in)
 
         print(f"✅ Token alındı")
 
@@ -172,9 +180,9 @@ def ga4_auth_callback(request):
         GA4Token.objects.update_or_create(
             company=company_profile,
             defaults={
-                'access_token': credentials.token,
-                'refresh_token': credentials.refresh_token,
-                'token_expiry': credentials.expiry
+                'access_token': token_response['access_token'],
+                'refresh_token': token_response.get('refresh_token'),
+                'token_expiry': token_expiry
             }
         )
 

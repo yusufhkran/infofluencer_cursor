@@ -91,9 +91,9 @@ const RegisterPage = () => {
       isChecked: true,
       message: 'Valid company email address ✓'
     };
-  }, [PERSONAL_EMAIL_DOMAINS]); // Dependency sadece PERSONAL_EMAIL_DOMAINS
+  }, [PERSONAL_EMAIL_DOMAINS]);
 
-  // Real-time email validation - artık ESLint happy!
+  // Real-time email validation
   useEffect(() => {
     if (formData.email) {
       const validation = validateCompanyEmail(formData.email);
@@ -105,7 +105,7 @@ const RegisterPage = () => {
         message: ''
       });
     }
-  }, [formData.email, validateCompanyEmail]); // ✅ Her iki dependency de mevcut
+  }, [formData.email, validateCompanyEmail]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -127,6 +127,8 @@ const RegisterPage = () => {
     );
   };
 
+  // RegisterPage.js handleSubmit fonksiyonunu bu temiz versiyonla değiştirin:
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -139,31 +141,38 @@ const RegisterPage = () => {
     setError('');
 
     try {
-      const result = await apiService.register({
+      const registerData = {
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
         company: formData.company,
         userType: 'company'
-      });
+      };
+      
+      const result = await apiService.register(registerData);
       
       if (result.success) {
-        navigate('/login', { 
-          state: { 
-            message: result.message || 'Registration successful! Please log in with your credentials.' 
-          }
-        });
+        // Success mesajını localStorage'a kaydet
+        const successMessage = result.message || 'Registration successful! Please log in with your credentials.';
+        localStorage.setItem('register_success_message', successMessage);
+        
+        setIsLoading(false);
+        
+        // Force navigation to login
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 500);
+        
       } else {
         setError(result.message);
+        setIsLoading(false);
       }
     } catch (error) {
       setError('Network error occurred. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-400/10 via-orange-300/5 to-orange-500/10 flex items-center justify-center p-8">
       <div className="w-full max-w-md">
