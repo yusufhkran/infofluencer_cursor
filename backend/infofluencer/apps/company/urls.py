@@ -20,4 +20,7 @@ urlpatterns = [
     path('reports/ga4/run/', views.run_ga4_report, name='run_ga4_report'),
     path('reports/youtube/run/', views.run_youtube_report, name='run_youtube_report'),
     path('reports/saved/', views.get_saved_report_from_db, name='get_saved_report'),
+
+    path('auth/ga4/validate/', views.validate_ga4_property, name='validate_ga4_property'),
+    path('debug/ga4/', views.ga4_debug_info, name='ga4_debug_info'),
 ]

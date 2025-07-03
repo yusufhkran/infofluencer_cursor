@@ -70,9 +70,22 @@ def analytics_dashboard(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def ga4_auth_start(request):
-    """Start GA4 OAuth Flow"""
+    """Start GA4 OAuth Flow with Full Permissions"""
     try:
         company_profile = CompanyProfile.objects.get(user=request.user)
+        
+        # ✅ FULL GA4 SCOPES - Tüm izinler
+        scopes = [
+            'https://www.googleapis.com/auth/analytics.readonly',
+            'https://www.googleapis.com/auth/analytics.edit',
+            'https://www.googleapis.com/auth/analytics.manage.users.readonly',
+            'https://www.googleapis.com/auth/analytics.provision',
+            'openid',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile'
+        ]
+        
+        print(f"🔄 Starting GA4 auth with scopes: {scopes}")
         
         # OAuth Flow oluştur
         flow = Flow.from_client_config(
@@ -84,19 +97,17 @@ def ga4_auth_start(request):
                     "token_uri": "https://oauth2.googleapis.com/token"
                 }
             },
-            scopes=[
-                'https://www.googleapis.com/auth/analytics.readonly',
-                'openid',
-                'https://www.googleapis.com/auth/userinfo.email'
-            ],
-            redirect_uri="http://127.0.0.1:8000/api/company/auth/ga4/callback/"  # ✅ Sabit URI
+            scopes=scopes,
+            redirect_uri="http://127.0.0.1:8000/api/company/auth/ga4/callback/"
         )
 
         authorization_url, state = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
-            prompt='consent'
+            prompt='consent'  # ✅ Yeni izinler için consent zorunlu
         )
+
+        print(f"✅ Authorization URL created: {authorization_url[:100]}...")
 
         # State'i kaydet
         OAuthState.objects.update_or_create(
@@ -114,6 +125,7 @@ def ga4_auth_start(request):
     except CompanyProfile.DoesNotExist:
         return Response({'error': 'Company profile not found'}, status=404)
     except Exception as e:
+        print(f"❌ GA4 Auth Start Error: {e}")
         return Response({'error': str(e)}, status=500)
 
 from rest_framework.permissions import AllowAny
@@ -133,7 +145,7 @@ def ga4_auth_callback(request):
     print(f"🔄 Code: {code[:20] if code else 'None'}...")
     
     if not state or not code:
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?error=missing_parameters"
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=missing_parameters"
         return HttpResponseRedirect(frontend_url)
 
     try:
@@ -167,7 +179,7 @@ def ga4_auth_callback(request):
         
         if response.status_code != 200:
             print(f"❌ Token exchange failed: {token_response}")
-            frontend_url = f"{settings.FRONTEND_URL}/analytics?error=token_exchange_failed"
+            frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=token_exchange_failed"
             return HttpResponseRedirect(frontend_url)
         
         # Token expiry hesapla
@@ -191,20 +203,20 @@ def ga4_auth_callback(request):
         # State'i sil
         state_record.delete()
 
-        # Frontend'e redirect
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?ga4_connected=true"
+        # Frontend'e redirect - DASHBOARD'A YÖNLENDİR
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?ga4_connected=true"
         print(f"🔄 Redirecting to: {frontend_url}")
         return HttpResponseRedirect(frontend_url)
 
     except OAuthState.DoesNotExist:
         print(f"❌ State bulunamadı: {state}")
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?error=invalid_state"
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=invalid_state"
         return HttpResponseRedirect(frontend_url)
     except Exception as e:
         print(f"❌ GA4 Callback Error: {e}")
         import traceback
         traceback.print_exc()
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?error=ga4_auth_failed"
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=ga4_auth_failed"
         return HttpResponseRedirect(frontend_url)
     
 @api_view(['POST'])
@@ -260,11 +272,16 @@ def youtube_auth_start(request):
 @permission_classes([AllowAny])
 def youtube_auth_callback(request):
     """Handle YouTube OAuth Callback"""
+    print("🚀🚀🚀 YOUTUBE CALLBACK ÇALIŞTI! 🚀🚀🚀")
+    
     state = request.GET.get('state')
     code = request.GET.get('code')
     
+    print(f"🔄 State: {state}")
+    print(f"🔄 Code: {code[:20] if code else 'None'}...")
+    
     if not state or not code:
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?error=missing_parameters"
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=missing_parameters"
         return HttpResponseRedirect(frontend_url)
 
     try:
@@ -272,55 +289,65 @@ def youtube_auth_callback(request):
         state_record = OAuthState.objects.get(state=state, provider='youtube')
         company_profile = state_record.company
 
-        # Flow oluştur
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": settings.YOUTUBE_CLIENT_ID,
-                    "client_secret": settings.YOUTUBE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token"
-                }
-            },
-            scopes=[
-                'https://www.googleapis.com/auth/youtube.readonly',
-                'https://www.googleapis.com/auth/yt-analytics.readonly',
-                'openid',
-                'https://www.googleapis.com/auth/userinfo.email'
-            ],
-            state=state,
-            redirect_uri="http://127.0.0.1:8000/api/company/auth/youtube/callback/"  # ✅ Sabit URI
-        )
+        print(f"✅ State doğrulandı - Company: {company_profile}")
 
-        # Token al
-        flow.fetch_token(authorization_response=request.build_absolute_uri())
-        credentials = flow.credentials
+        # Manuel token exchange (GA4 ile aynı yöntem)
+        import requests
+        from datetime import datetime, timedelta
+        
+        token_url = "https://oauth2.googleapis.com/token"
+        token_data = {
+            'client_id': settings.YOUTUBE_CLIENT_ID,
+            'client_secret': settings.YOUTUBE_CLIENT_SECRET,
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': "http://127.0.0.1:8000/api/company/auth/youtube/callback/"
+        }
+        
+        response = requests.post(token_url, data=token_data)
+        token_response = response.json()
+        
+        if response.status_code != 200:
+            print(f"❌ Token exchange failed: {token_response}")
+            frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=token_exchange_failed"
+            return HttpResponseRedirect(frontend_url)
+        
+        # Token expiry hesapla
+        expires_in = token_response.get('expires_in', 3600)  # Default 1 hour
+        token_expiry = datetime.now() + timedelta(seconds=expires_in)
+
+        print(f"✅ Token alındı")
 
         # Token'ı kaydet
         YouTubeToken.objects.update_or_create(
             company=company_profile,
             defaults={
-                'access_token': credentials.token,
-                'refresh_token': credentials.refresh_token,
-                'token_expiry': credentials.expiry
+                'access_token': token_response['access_token'],
+                'refresh_token': token_response.get('refresh_token'),
+                'token_expiry': token_expiry
             }
         )
+
+        print(f"✅ Token kaydedildi")
 
         # State'i sil
         state_record.delete()
 
-        # Frontend'e redirect
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?youtube_connected=true"
+        # Frontend'e redirect - DASHBOARD'A YÖNLENDİR
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?youtube_connected=true"
+        print(f"🔄 Redirecting to: {frontend_url}")
         return HttpResponseRedirect(frontend_url)
 
     except OAuthState.DoesNotExist:
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?error=invalid_state"
+        print(f"❌ State bulunamadı: {state}")
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=invalid_state"
         return HttpResponseRedirect(frontend_url)
     except Exception as e:
-        print(f"YouTube Callback Error: {e}")  # ✅ Debug için
-        frontend_url = f"{settings.FRONTEND_URL}/analytics?error=youtube_auth_failed"
+        print(f"❌ YouTube Callback Error: {e}")
+        import traceback
+        traceback.print_exc()
+        frontend_url = f"{settings.FRONTEND_URL}/dashboard?error=youtube_auth_failed"
         return HttpResponseRedirect(frontend_url)
-    
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -382,6 +409,7 @@ def check_connections(request):
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
+# Bu kodları mevcut run_ga4_report fonksiyonunun yerine koyun:
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def run_ga4_report(request):
@@ -409,10 +437,21 @@ def run_ga4_report(request):
         )
         
         # 2. Save to database - Database'e kaydet
-        saver_method_name = f"save_{report_type.lower()}_data"
+        # CamelCase'i snake_case'e çevir
+        def camel_to_snake(name):
+            import re
+            s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+            return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        
+        saver_method_name = f"save_{camel_to_snake(report_type)}_data"
+        print(f"🔍 Looking for saver method: {saver_method_name}")  # Debug için
+        
         if hasattr(GA4DataSaver, saver_method_name):
             saver_method = getattr(GA4DataSaver, saver_method_name)
             saver_method(company_profile.id, report_data)
+            print(f"✅ Data saved to database")
+        else:
+            print(f"⚠️ Saver method not found: {saver_method_name}")
         
         return Response({
             'success': True,
@@ -427,7 +466,7 @@ def run_ga4_report(request):
         return Response({'error': 'GA4 token not found. Please connect GA4 first.'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
-
+    
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def run_youtube_report(request):
@@ -451,11 +490,17 @@ def run_youtube_report(request):
         )
         
         # 2. Save to database - Database'e kaydet
-        saver_method_name = f"save_{report_type.lower()}_data"
+        def camel_to_snake(name):
+            import re
+            s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+            return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        
+        saver_method_name = f"save_{camel_to_snake(report_type)}_data"
+        
         if hasattr(YouTubeDataSaver, saver_method_name):
             saver_method = getattr(YouTubeDataSaver, saver_method_name)
             saver_method(company_profile.id, report_data)
-        
+            
         return Response({
             'success': True,
             'report_type': report_type,
@@ -533,5 +578,399 @@ def get_saved_report_from_db(request):
         
     except CompanyProfile.DoesNotExist:
         return Response({'error': 'Company profile not found'}, status=404)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+    
+# Simple GA4 test view to debug the issue
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def test_ga4_simple(request):
+    """Simple GA4 Test - Minimal implementation to debug"""
+    
+    try:
+        company_profile = CompanyProfile.objects.get(user=request.user)
+        ga4_token = GA4Token.objects.get(company=company_profile)
+        
+        if not ga4_token.property_id:
+            return Response({'error': 'GA4 Property ID not set'}, status=400)
+        
+        print(f"🔄 Testing GA4 connection...")
+        print(f"   - Property ID: {ga4_token.property_id}")
+        print(f"   - Token exists: {bool(ga4_token.access_token)}")
+        
+        # Minimal GA4 API test
+        from google.analytics.data_v1beta import BetaAnalyticsDataClient
+        from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric
+        from google.oauth2.credentials import Credentials
+        
+        try:
+            # Create credentials
+            creds = Credentials(
+                token=ga4_token.access_token,
+                refresh_token=ga4_token.refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=settings.GOOGLE_CLIENT_ID,
+                client_secret=settings.GOOGLE_CLIENT_SECRET
+            )
+            
+            print(f"✅ Credentials created")
+            
+            # Create client
+            client = BetaAnalyticsDataClient(credentials=creds)
+            print(f"✅ Client created")
+            
+            # Simple request - sadece temel metrikler
+            request = RunReportRequest(
+                property=f"properties/{ga4_token.property_id}",
+                dimensions=[Dimension(name="country")],
+                metrics=[Metric(name="activeUsers")],
+                date_ranges=[DateRange(start_date="7daysAgo", end_date="today")]
+            )
+            
+            print(f"🔄 Making API request...")
+            response = client.run_report(request)
+            print(f"✅ API request successful")
+            
+            # Parse response
+            data = []
+            for row in response.rows:
+                data.append({
+                    "country": row.dimension_values[0].value,
+                    "active_users": int(row.metric_values[0].value)
+                })
+            
+            print(f"✅ Data parsed: {len(data)} rows")
+            
+            return Response({
+                'success': True,
+                'message': 'GA4 connection test successful',
+                'property_id': ga4_token.property_id,
+                'data_count': len(data),
+                'sample_data': data[:5] if data else []  # İlk 5 satır
+            })
+            
+        except Exception as api_error:
+            print(f"❌ GA4 API Error: {api_error}")
+            import traceback
+            traceback.print_exc()
+            
+            return Response({
+                'error': f'GA4 API Error: {str(api_error)}',
+                'error_type': type(api_error).__name__
+            }, status=500)
+        
+    except CompanyProfile.DoesNotExist:
+        return Response({'error': 'Company profile not found'}, status=404)
+    except GA4Token.DoesNotExist:
+        return Response({'error': 'GA4 token not found'}, status=404)
+    except Exception as e:
+        print(f"❌ Unexpected Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': f'Unexpected error: {str(e)}'}, status=500)
+    
+# Property ID validator ve test endpoint
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def validate_ga4_property(request):
+    """Validate GA4 Property ID and Test Access"""
+    property_id = request.data.get('property_id')
+    
+    if not property_id:
+        return Response({'error': 'Property ID is required'}, status=400)
+    
+    try:
+        company_profile = CompanyProfile.objects.get(user=request.user)
+        ga4_token = GA4Token.objects.get(company=company_profile)
+        
+        from google.analytics.data_v1beta import BetaAnalyticsDataClient
+        from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric
+        from google.oauth2.credentials import Credentials
+        from django.utils import timezone
+        
+        # Token refresh if needed
+        now = timezone.now()
+        if ga4_token.token_expiry and ga4_token.token_expiry <= now:
+            print(f"🔄 Refreshing token for property validation...")
+            # Token refresh logic here (copy from main function)
+        
+        # Create credentials
+        creds = Credentials(
+            token=ga4_token.access_token,
+            refresh_token=ga4_token.refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET
+        )
+        
+        # Test property access with minimal request
+        client = BetaAnalyticsDataClient(credentials=creds)
+        
+        print(f"🔄 Testing property access for: {property_id}")
+        
+        # Minimal test request
+        request_test = RunReportRequest(
+            property=f"properties/{property_id}",
+            dimensions=[Dimension(name="country")],
+            metrics=[Metric(name="activeUsers")],
+            date_ranges=[DateRange(start_date="7daysAgo", end_date="today")],
+            limit=1  # Only 1 row for testing
+        )
+        
+        try:
+            response = client.run_report(request_test)
+            
+            # If we get here, access is successful
+            row_count = len(response.rows)
+            
+            # Save property ID if validation successful
+            ga4_token.property_id = property_id
+            ga4_token.save()
+            
+            return Response({
+                'success': True,
+                'property_id': property_id,
+                'access_confirmed': True,
+                'test_data_rows': row_count,
+                'message': f'Property {property_id} validated successfully!'
+            })
+            
+        except Exception as api_error:
+            print(f"❌ GA4 API Error during validation: {api_error}")
+            
+            error_str = str(api_error).lower()
+            
+            if 'permission' in error_str or 'access' in error_str:
+                return Response({
+                    'error': 'Property access denied',
+                    'property_id': property_id,
+                    'suggestions': [
+                        'Make sure you are the owner/admin of this GA4 property',
+                        'Check if the property ID is correct',
+                        'Verify the Google account used for authentication has access',
+                        'Try reconnecting with full permissions'
+                    ]
+                }, status=403)
+            
+            elif 'not found' in error_str:
+                return Response({
+                    'error': 'Property not found',
+                    'property_id': property_id,
+                    'suggestions': [
+                        'Double-check the Property ID from Google Analytics Admin',
+                        'Make sure it\'s a GA4 property (not Universal Analytics)',
+                        'Property ID should be numeric (e.g., 123456789)'
+                    ]
+                }, status=404)
+            
+            else:
+                return Response({
+                    'error': f'Validation failed: {str(api_error)}',
+                    'property_id': property_id
+                }, status=500)
+        
+    except CompanyProfile.DoesNotExist:
+        return Response({'error': 'Company profile not found'}, status=404)
+    except GA4Token.DoesNotExist:
+        return Response({'error': 'GA4 token not found. Please connect GA4 first.'}, status=404)
+    except Exception as e:
+        print(f"❌ Validation Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': f'Validation error: {str(e)}'}, status=500)
+
+# Backend - Fixed save_ga4_property_id function
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def save_ga4_property_id(request):
+    """Save GA4 Property ID - Fixed Version"""
+    property_id = request.data.get('property_id')
+    
+    if not property_id:
+        return Response({'error': 'Property ID is required'}, status=400)
+    
+    try:
+        company_profile = CompanyProfile.objects.get(user=request.user)
+        ga4_token = GA4Token.objects.get(company=company_profile)
+        
+        print(f"🔄 Saving Property ID: {property_id}")
+        
+        # Direkt kaydet, validation ayrı endpoint'te yapılacak
+        ga4_token.property_id = property_id
+        ga4_token.save()
+        
+        print(f"✅ Property ID saved: {ga4_token.property_id}")
+        
+        return Response({
+            'success': True, 
+            'message': 'GA4 Property ID saved successfully',
+            'property_id': property_id
+        })
+        
+    except CompanyProfile.DoesNotExist:
+        return Response({'error': 'Company profile not found'}, status=404)
+    except GA4Token.DoesNotExist:
+        return Response({'error': 'GA4 token not found. Please connect GA4 first.'}, status=404)
+    except Exception as e:
+        print(f"❌ Save Error: {e}")
+        return Response({'error': str(e)}, status=500)
+
+# Property ID validation için ayrı endpoint
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def validate_ga4_property_id(request):
+    """Validate GA4 Property ID Access"""
+    property_id = request.data.get('property_id')
+    
+    if not property_id:
+        return Response({'error': 'Property ID is required'}, status=400)
+    
+    try:
+        company_profile = CompanyProfile.objects.get(user=request.user)
+        ga4_token = GA4Token.objects.get(company=company_profile)
+        
+        from google.analytics.data_v1beta import BetaAnalyticsDataClient
+        from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric
+        from google.oauth2.credentials import Credentials
+        
+        # Create credentials
+        creds = Credentials(
+            token=ga4_token.access_token,
+            refresh_token=ga4_token.refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET
+        )
+        
+        # Test property access
+        client = BetaAnalyticsDataClient(credentials=creds)
+        
+        print(f"🔄 Testing property access for: {property_id}")
+        
+        request_test = RunReportRequest(
+            property=f"properties/{property_id}",
+            dimensions=[Dimension(name="country")],
+            metrics=[Metric(name="activeUsers")],
+            date_ranges=[DateRange(start_date="7daysAgo", end_date="today")],
+            limit=1
+        )
+        
+        try:
+            response = client.run_report(request_test)
+            row_count = len(response.rows)
+            
+            print(f"✅ Property access successful: {row_count} rows")
+            
+            return Response({
+                'success': True,
+                'property_id': property_id,
+                'access_confirmed': True,
+                'test_data_rows': row_count,
+                'message': f'Property {property_id} is accessible!'
+            })
+            
+        except Exception as api_error:
+            print(f"❌ Property access failed: {api_error}")
+            
+            error_str = str(api_error).lower()
+            
+            if 'permission' in error_str or 'access' in error_str:
+                return Response({
+                    'success': False,
+                    'error': 'No access to this property',
+                    'property_id': property_id,
+                    'suggestions': [
+                        'Make sure you own this GA4 property',
+                        'Check if Property ID is correct',
+                        'Verify your Google account has admin access'
+                    ]
+                }, status=403)
+            
+            return Response({
+                'success': False,
+                'error': f'Validation failed: {str(api_error)}',
+                'property_id': property_id
+            }, status=500)
+        
+    except Exception as e:
+        print(f"❌ Validation Error: {e}")
+        return Response({'error': str(e)}, status=500)
+
+# Connection status endpoint - Property ID dahil
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_connections(request):
+    """Check GA4 and YouTube Connection Status with Property ID"""
+    try:
+        company_profile = CompanyProfile.objects.get(user=request.user)
+        
+        ga4_connected = GA4Token.objects.filter(company=company_profile).exists()
+        youtube_connected = YouTubeToken.objects.filter(company=company_profile).exists()
+        
+        ga4_property_id = None
+        if ga4_connected:
+            try:
+                ga4_token = GA4Token.objects.get(company=company_profile)
+                ga4_property_id = ga4_token.property_id
+                print(f"🔍 Current GA4 Property ID: {ga4_property_id}")
+            except GA4Token.DoesNotExist:
+                ga4_connected = False
+        
+        return Response({
+            'success': True,
+            'connections': {
+                'ga4': ga4_connected,
+                'youtube': youtube_connected
+            },
+            'ga4_property_id': ga4_property_id,
+            'ga4_property_set': bool(ga4_property_id)  # Property ID set mi?
+        })
+        
+    except CompanyProfile.DoesNotExist:
+        return Response({'error': 'Company profile not found'}, status=404)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ga4_debug_info(request):
+    """Get GA4 Debug Information"""
+    try:
+        company_profile = CompanyProfile.objects.get(user=request.user)
+        ga4_token = GA4Token.objects.get(company=company_profile)
+        
+        from django.utils import timezone
+        
+        # Token info
+        now = timezone.now()
+        is_expired = ga4_token.token_expiry and ga4_token.token_expiry <= now
+        
+        debug_info = {
+            'token_exists': bool(ga4_token.access_token),
+            'token_length': len(ga4_token.access_token) if ga4_token.access_token else 0,
+            'refresh_token_exists': bool(ga4_token.refresh_token),
+            'property_id': ga4_token.property_id,
+            'token_expiry': ga4_token.token_expiry.isoformat() if ga4_token.token_expiry else None,
+            'is_token_expired': is_expired,
+            'minutes_until_expiry': int((ga4_token.token_expiry - now).total_seconds() / 60) if ga4_token.token_expiry and not is_expired else None,
+            'google_client_id_prefix': settings.GOOGLE_CLIENT_ID[:20] + '...' if settings.GOOGLE_CLIENT_ID else None,
+            'google_client_secret_exists': bool(settings.GOOGLE_CLIENT_SECRET)
+        }
+        
+        return Response({
+            'success': True,
+            'debug_info': debug_info,
+            'suggestions': [
+                'If token is expired, try generating a new report (auto-refresh)',
+                'If property_id is null, set it in the dashboard',
+                'If permission error persists, reconnect with full permissions',
+                'Make sure you are admin/owner of the GA4 property'
+            ]
+        })
+        
+    except CompanyProfile.DoesNotExist:
+        return Response({'error': 'Company profile not found'}, status=404)
+    except GA4Token.DoesNotExist:
+        return Response({'error': 'GA4 token not found'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=500)

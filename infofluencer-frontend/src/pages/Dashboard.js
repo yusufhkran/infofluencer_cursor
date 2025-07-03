@@ -1,83 +1,451 @@
+// Dashboard.js - Modern Infofluencer Dashboard
+// Bu dosya /src/pages/Dashboard.js olacak
+
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import apiService from '../services/api';
+
+// API fonksiyonları
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+
+// Token utilities
+const tokenUtils = {
+  getAccessToken: () => localStorage.getItem('access_token'),
+  getRefreshToken: () => localStorage.getItem('refresh_token'),
+  getUserData: () => {
+    const userData = localStorage.getItem('user_data');
+    return userData ? JSON.parse(userData) : null;
+  }
+};
+
+// Dashboard API fonksiyonları
+const dashboardApi = {
+  // YouTube Authentication
+  startYouTubeAuth: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/auth/youtube/start/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to start YouTube auth' };
+      }
+    } catch (error) {
+      console.error('YouTube auth error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // GA4 Authentication
+  startGA4Auth: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/auth/ga4/start/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to start GA4 auth' };
+      }
+    } catch (error) {
+      console.error('GA4 auth error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Save GA4 Property ID
+  saveGA4PropertyId: async (propertyId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/auth/ga4/property/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ property_id: propertyId })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to save property ID' };
+      }
+    } catch (error) {
+      console.error('Save property ID error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Run GA4 Report
+  runGA4Report: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/ga4/run/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ report_type: reportType })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to run GA4 report' };
+      }
+    } catch (error) {
+      console.error('GA4 report error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Run YouTube Report
+  runYouTubeReport: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/youtube/run/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ report_type: reportType })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to run YouTube report' };
+      }
+    } catch (error) {
+      console.error('YouTube report error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Get GA4 Data
+  getGA4Data: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=ga4&report_type=${reportType}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'No data found' };
+      }
+    } catch (error) {
+      console.error('Get GA4 data error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Get YouTube Data
+  getYouTubeData: async (reportType) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=youtube&report_type=${reportType}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'No data found' };
+      }
+    } catch (error) {
+      console.error('Get YouTube data error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Check Connections
+  checkConnections: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/analytics/connections/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to check connections' };
+      }
+    } catch (error) {
+      console.error('Connection check error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  }
+};
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [connections, setConnections] = useState({ ga4: false, youtube: false });
+  const [ga4PropertySet, setGA4PropertySet] = useState(false); // Property ID durumu
+  const [activeSection, setActiveSection] = useState('overview');
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+  const [ga4PropertyId, setGA4PropertyId] = useState('');
+  const [selectedReport, setSelectedReport] = useState(null);
+
+  // Report types
+  const GA4_REPORTS = [
+    { key: 'userAcquisitionSource', name: 'User Acquisition', icon: '👥' },
+    { key: 'sessionSourceMedium', name: 'Session Source', icon: '🌐' },
+    { key: 'operatingSystem', name: 'Operating System', icon: '💻' },
+    { key: 'userGender', name: 'User Gender', icon: '👤' },
+    { key: 'deviceCategory', name: 'Device Category', icon: '📱' },
+    { key: 'country', name: 'Country', icon: '🌍' },
+    { key: 'city', name: 'City', icon: '🏙️' },
+    { key: 'age', name: 'Age Demographics', icon: '📊' }
+  ];
+
+  const YOUTUBE_REPORTS = [
+    { key: 'trafficSource', name: 'Traffic Source', icon: '🚀' },
+    { key: 'ageGroup', name: 'Age Groups', icon: '👥' },
+    { key: 'deviceType', name: 'Device Types', icon: '📺' },
+    { key: 'topSubscribers', name: 'Top Subscribers', icon: '⭐' }
+  ];
 
   useEffect(() => {
-    // Get user data when component mounts
-    const loadUserData = async () => {
-      try {
-        // First try to get cached user data
-        const cachedUser = apiService.getCurrentUser();
-        if (cachedUser) {
-          setUser(cachedUser);
-        }
-
-        // Then fetch fresh user data from API
-        const result = await apiService.getUserProfile();
-        if (result.success) {
-          setUser(result.data);
-          localStorage.setItem('user_data', JSON.stringify(result.data));
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUserData();
+    // Kullanıcı bilgilerini localStorage'dan al
+    const userData = localStorage.getItem('user_data');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+    checkConnections();
+    
+    // URL'den mesaj parametrelerini kontrol et
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('ga4_connected') === 'true') {
+      showMessage('GA4 successfully connected!', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(checkConnections, 1000);
+    }
+    if (urlParams.get('youtube_connected') === 'true') {
+      showMessage('YouTube successfully connected!', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(checkConnections, 1000);
+    }
+    if (urlParams.get('error')) {
+      showMessage('Authentication failed. Please try again.', 'error');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
-  const handleLogout = async () => {
-    setIsLoading(true);
+  const checkConnections = async () => {
     try {
-      await apiService.logout();
-      navigate('/login');
+      const result = await dashboardApi.checkConnections();
+      if (result.success) {
+        setConnections(result.data.connections);
+        
+        // GA4 Property ID durumunu kontrol et
+        if (result.data.ga4_property_id) {
+          setGA4PropertyId(result.data.ga4_property_id);
+          setGA4PropertySet(true);
+        } else {
+          setGA4PropertyId('');
+          setGA4PropertySet(false);
+        }
+        
+        console.log('🔍 Connection Status:', result.data);
+      }
     } catch (error) {
-      console.error('Logout error:', error);
-      // Even if logout API fails, clear tokens and redirect
-      navigate('/login');
+      console.error('Connection check failed:', error);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-white rounded-lg shadow-sm flex items-center justify-center mr-3 border border-gray-100">
-                <img 
-                  src="/logo.png" 
-                  alt="InfoFluencer Logo" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <span className="text-xl font-light italic text-gray-800 tracking-wider" style={{fontFamily: 'Georgia, serif'}}>infofluencer</span>
-            </div>
-            
-            {/* Navigation & User Menu */}
-            <div className="flex items-center space-x-4">
-              {/* Analytics Navigation */}
-              <Link 
-                to="/analytics" 
-                className="flex items-center px-3 py-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span className="hidden sm:inline">Analytics</span>
-              </Link>
+  const showMessage = (msg, type) => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 5000);
+  };
 
+  const handleGA4Connect = async () => {
+    try {
+      setIsLoading(true);
+      const result = await dashboardApi.startGA4Auth();
+      if (result.success && result.data.authorization_url) {
+        window.location.href = result.data.authorization_url;
+      } else {
+        showMessage('Failed to start authentication', 'error');
+      }
+    } catch (error) {
+      showMessage('Authentication failed', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleYouTubeConnect = async () => {
+    try {
+      setIsLoading(true);
+      const result = await dashboardApi.startYouTubeAuth();
+      if (result.success && result.data.authorization_url) {
+        window.location.href = result.data.authorization_url;
+      } else {
+        showMessage('Failed to start authentication', 'error');
+      }
+    } catch (error) {
+      showMessage('Authentication failed', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const savePropertyId = async () => {
+    if (!ga4PropertyId.trim()) {
+      showMessage('Please enter a valid Property ID', 'error');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const result = await dashboardApi.saveGA4PropertyId(ga4PropertyId);
+      if (result.success) {
+        showMessage('Property ID saved successfully!', 'success');
+        setGA4PropertySet(true); // Hemen state'i güncelle
+        // Connections'ı yeniden kontrol et
+        setTimeout(checkConnections, 500);
+      } else {
+        showMessage(result.message || 'Failed to save Property ID', 'error');
+      }
+    } catch (error) {
+      showMessage('Failed to save Property ID', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Property ID'yi backend'den silmek için
+  const savePropertyIdBackend = async (propertyId) => {
+    try {
+      await dashboardApi.saveGA4PropertyId(propertyId || ''); // Empty string if null
+      setTimeout(checkConnections, 500);
+    } catch (error) {
+      console.error('Error updating property ID:', error);
+    }
+  };
+
+  const runReport = async (source, reportType) => {
+    try {
+      setIsLoading(true);
+      
+      let result;
+      if (source === 'ga4') {
+        result = await dashboardApi.runGA4Report(reportType);
+      } else {
+        result = await dashboardApi.runYouTubeReport(reportType);
+      }
+
+      if (result.success) {
+        showMessage(`${reportType} report generated successfully!`, 'success');
+        setTimeout(() => loadSavedReport(source, reportType), 1000);
+      } else {
+        showMessage(result.message || 'Failed to run report', 'error');
+      }
+    } catch (error) {
+      showMessage('Failed to run report', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadSavedReport = async (source, reportType) => {
+    try {
+      setIsLoading(true);
+      
+      let result;
+      if (source === 'ga4') {
+        result = await dashboardApi.getGA4Data(reportType);
+      } else {
+        result = await dashboardApi.getYouTubeData(reportType);
+      }
+
+      if (result.success && result.data.data) {
+        setSelectedReport({ 
+          source, 
+          reportType, 
+          data: result.data.data,
+          recordCount: result.data.record_count 
+        });
+        setActiveSection('reports');
+        showMessage(`Loaded ${result.data.record_count} records`, 'success');
+      } else {
+        showMessage('No saved data found for this report', 'error');
+        setSelectedReport(null);
+      }
+    } catch (error) {
+      showMessage('No saved data found', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_data');
+    window.location.href = '/login';
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-orange-100">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">I</span>
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">
+                  Infofluencer
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
               {user && (
-                <div className="hidden md:flex items-center space-x-3 mr-4">
+                <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-bold text-sm">
                       {user.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
@@ -90,425 +458,520 @@ const Dashboard = () => {
                         : user.email
                       }
                     </p>
-                    {user.company && (
-                      <p className="text-gray-600">{user.company}</p>
-                    )}
                   </div>
                 </div>
               )}
-              <button className="text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-                Profile
-              </button>
-              <button className="text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-                Settings
-              </button>
               <button 
                 onClick={handleLogout}
-                disabled={isLoading}
-                className="text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                className="text-orange-600 hover:text-orange-700 px-4 py-2 rounded-lg hover:bg-orange-50 transition-all duration-200"
               >
-                {isLoading ? 'Logging out...' : 'Logout'}
+                Logout
               </button>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Message Display */}
+      {message && (
+        <div className={`mx-4 mt-4 p-4 rounded-xl border ${
+          messageType === 'success' 
+            ? 'bg-green-50 border-green-200 text-green-700' 
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          {message}
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-200 border-t-orange-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600 text-center">Loading...</p>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back{user?.first_name ? `, ${user.first_name}` : ''}!
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Welcome back{user?.first_name ? `, ${user.first_name}` : ''}! 👋
           </h1>
-          <p className="text-gray-600">
-            {user?.company ? `${user.company} • ` : ''}Manage your influencer marketing campaigns and track performance
+          <p className="text-xl text-gray-600">
+            Manage your influencer campaigns and analytics from one place
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Campaigns</p>
-                <p className="text-2xl font-bold text-gray-900">12</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Influencers</p>
-                <p className="text-2xl font-bold text-gray-900">34</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Reach</p>
-                <p className="text-2xl font-bold text-gray-900">2.4M</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.51-1.31c-.562-.649-1.413-1.076-2.353-1.253V5z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">ROI</p>
-                <p className="text-2xl font-bold text-gray-900">340%</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Analytics Status Card */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Data Sources</p>
-                <Link to="/analytics" className="text-2xl font-bold text-indigo-600 hover:text-indigo-700">
-                  Connect
-                </Link>
-              </div>
-            </div>
-          </div>
+        {/* Navigation Pills */}
+        <div className="flex space-x-2 mb-8 bg-white/70 backdrop-blur-sm p-2 rounded-2xl border border-white/50">
+          {[
+            { id: 'overview', label: 'Overview', icon: '📊' },
+            { id: 'ga4', label: 'Google Analytics', icon: '📈' },
+            { id: 'youtube', label: 'YouTube Analytics', icon: '📺' },
+            { id: 'reports', label: 'Reports', icon: '📋' }
+          ].map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                activeSection === section.id
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-200'
+                  : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'
+              }`}
+            >
+              <span className="text-lg">{section.icon}</span>
+              <span>{section.label}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Recent Campaigns */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Campaigns</h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+        {/* Overview Section */}
+        {activeSection === 'overview' && (
+          <div className="space-y-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-gray-900">Summer Collection 2025</h4>
-                    <p className="text-sm text-gray-600">Fashion & Lifestyle</p>
+                    <p className="text-sm font-medium text-gray-600">Total Campaigns</p>
+                    <p className="text-3xl font-bold text-gray-900">12</p>
+                    <p className="text-sm text-green-600">+3 this month</p>
                   </div>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">Active</span>
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">🚀</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-gray-900">Tech Product Launch</h4>
-                    <p className="text-sm text-gray-600">Technology</p>
+                    <p className="text-sm font-medium text-gray-600">Active Influencers</p>
+                    <p className="text-3xl font-bold text-gray-900">24</p>
+                    <p className="text-sm text-green-600">+6 this week</p>
                   </div>
-                  <span className="px-3 py-1 bg-orange-100 text-orange-800 text-sm rounded-full">Pending</span>
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">👥</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-gray-900">Holiday Special</h4>
-                    <p className="text-sm text-gray-600">E-commerce</p>
+                    <p className="text-sm font-medium text-gray-600">Total Reach</p>
+                    <p className="text-3xl font-bold text-gray-900">2.4M</p>
+                    <p className="text-sm text-green-600">+12% growth</p>
                   </div>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">Completed</span>
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">📈</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">ROI</p>
+                    <p className="text-3xl font-bold text-gray-900">340%</p>
+                    <p className="text-sm text-green-600">Above average</p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center">
+                    <span className="text-2xl">💰</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                <button className="flex flex-col items-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors">
-                  <svg className="w-8 h-8 text-orange-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">New Campaign</span>
+            {/* Quick Actions */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
+                    <span className="text-2xl">🔍</span>
+                  </div>
+                  <span className="font-medium text-gray-700">Find Influencers</span>
                 </button>
-                <button className="flex flex-col items-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors">
-                  <svg className="w-8 h-8 text-orange-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Find Influencers</span>
-                </button>
-                <Link 
-                  to="/analytics"
-                  className="flex flex-col items-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors"
+
+                <button 
+                  onClick={() => setActiveSection('ga4')}
+                  className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200"
                 >
-                  <svg className="w-8 h-8 text-orange-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Analytics Integration</span>
-                </Link>
-                <button className="flex flex-col items-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors">
-                  <svg className="w-8 h-8 text-orange-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Messages</span>
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
+                    <span className="text-2xl">📊</span>
+                  </div>
+                  <span className="font-medium text-gray-700">Google Analytics</span>
+                </button>
+
+                <button 
+                  onClick={() => setActiveSection('youtube')}
+                  className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200"
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-red-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
+                    <span className="text-2xl">📺</span>
+                  </div>
+                  <span className="font-medium text-gray-700">YouTube Analytics</span>
+                </button>
+
+                <button className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
+                    <span className="text-2xl">💬</span>
+                  </div>
+                  <span className="font-medium text-gray-700">Messages</span>
                 </button>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Performance Chart */}
-        <div className="mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Campaign Performance</h3>
-            </div>
-            <div className="p-6">
-              <div className="h-64 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <p className="text-lg font-medium">Performance Chart</p>
-                  <p className="text-sm">Interactive charts will be displayed here</p>
+            {/* Analytics Status */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                    <span className="w-3 h-3 rounded-full bg-blue-500 mr-3"></span>
+                    Google Analytics 4
+                  </h3>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    connections.ga4 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {connections.ga4 ? '✅ Connected' : '❌ Not Connected'}
+                  </span>
                 </div>
+                <p className="text-gray-600 mb-4">Track website performance and user behavior</p>
+                {!connections.ga4 && (
+                  <button
+                    onClick={() => setActiveSection('ga4')}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg shadow-blue-200"
+                  >
+                    Connect Google Analytics
+                  </button>
+                )}
               </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                    <span className="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
+                    YouTube Analytics
+                  </h3>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    connections.youtube 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {connections.youtube ? '✅ Connected' : '❌ Not Connected'}
+                  </span>
+                </div>
+                <p className="text-gray-600 mb-4">Monitor video performance and audience insights</p>
+                {!connections.youtube && (
+                  <button
+                    onClick={() => setActiveSection('youtube')}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg shadow-red-200"
+                  >
+                    Connect YouTube Analytics
+                  </button>
+                )}
+</div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Top Influencers */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Top Influencers</h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">JD</span>
+        {/* GA4 Section */}
+        {activeSection === 'ga4' && (
+          <div className="space-y-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <span className="w-3 h-3 rounded-full bg-blue-500 mr-3"></span>
+                Google Analytics 4 Integration
+              </h3>
+              
+              {!connections.ga4 ? (
+                <div className="text-center py-8">
+                  <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl">📊</span>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">@johndoe</p>
-                    <p className="text-sm text-gray-600">Fashion • 250K followers</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-green-600">+12.5%</p>
-                  </div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-3">Connect Google Analytics</h4>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Get detailed insights about your website visitors, their behavior, and conversion patterns
+                  </p>
+                  <button
+                    onClick={handleGA4Connect}
+                    disabled={isLoading}
+                    className="px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg shadow-blue-200 disabled:opacity-50"
+                  >
+                    {isLoading ? 'Connecting...' : 'Connect Google Analytics'}
+                  </button>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">SM</span>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600">✅</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-900">Google Analytics Connected</p>
+                        <p className="text-sm text-green-600">Ready to fetch analytics data</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">@sarahstyle</p>
-                    <p className="text-sm text-gray-600">Lifestyle • 180K followers</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-green-600">+8.3%</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">TG</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">@techguru</p>
-                    <p className="text-sm text-gray-600">Technology • 320K followers</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-green-600">+15.7%</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Recent Activity */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Campaign "Summer Vibes" launched</p>
-                    <p className="text-xs text-gray-600">2 hours ago</p>
+                  {/* GA4 Property ID Section */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">GA4 Property Configuration</h4>
+                    
+                    {!ga4PropertySet ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            GA4 Property ID <span className="text-red-500">*</span>
+                          </label>
+                          <div className="flex space-x-3">
+                            <input
+                              type="text"
+                              value={ga4PropertyId}
+                              onChange={(e) => setGA4PropertyId(e.target.value)}
+                              placeholder="Enter your GA4 Property ID (e.g., 123456789)"
+                              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <button
+                              onClick={savePropertyId}
+                              disabled={isLoading || !ga4PropertyId.trim()}
+                              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50"
+                            >
+                              {isLoading ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-4">
+                          <p className="text-sm text-blue-700">
+                            <strong>How to find your GA4 Property ID:</strong><br/>
+                            1. Go to Google Analytics → Admin → Property Settings<br/>
+                            2. Copy the Property ID (numbers only)
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
+                          <div>
+                            <p className="font-medium text-green-900">Property ID Configured</p>
+                            <p className="text-sm text-green-600">Property ID: {ga4PropertyId}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setGA4PropertySet(false);
+                              setGA4PropertyId('');
+                              savePropertyIdBackend('');
+                            }}
+                            className="text-orange-600 hover:text-orange-700 px-3 py-1 rounded-lg hover:bg-orange-50 transition-all duration-200 text-sm"
+                          >
+                            Change
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">New influencer application received</p>
-                    <p className="text-xs text-gray-600">4 hours ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Campaign budget updated</p>
-                    <p className="text-xs text-gray-600">Yesterday</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Performance report generated</p>
-                    <p className="text-xs text-gray-600">2 days ago</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Notifications */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
+                  {/* GA4 Reports */}
+                  {ga4PropertySet && (
                     <div>
-                      <p className="text-sm font-medium text-yellow-800">Campaign Review Needed</p>
-                      <p className="text-xs text-yellow-700">3 campaigns require your approval</p>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Available Reports</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {GA4_REPORTS.map((report) => (
+                          <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-2xl">{report.icon}</span>
+                                <h5 className="font-medium text-gray-900">{report.name}</h5>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => runReport('ga4', report.key)}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 text-sm"
+                              >
+                                {isLoading ? 'Running...' : 'Run Report'}
+                              </button>
+                              <button
+                                onClick={() => loadSavedReport('ga4', report.key)}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
+                              >
+                                Load Saved
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* YouTube Section */}
+        {activeSection === 'youtube' && (
+          <div className="space-y-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <span className="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
+                YouTube Analytics Integration
+              </h3>
+              
+              {!connections.youtube ? (
+                <div className="text-center py-8">
+                  <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-red-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl">📺</span>
+                  </div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-3">Connect YouTube Analytics</h4>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Access detailed insights about your YouTube channel performance, audience demographics, and video metrics
+                  </p>
+                  <button
+                    onClick={handleYouTubeConnect}
+                    disabled={isLoading}
+                    className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg shadow-red-200 disabled:opacity-50"
+                  >
+                    {isLoading ? 'Connecting...' : 'Connect YouTube Analytics'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600">✅</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-900">YouTube Analytics Connected</p>
+                        <p className="text-sm text-green-600">Ready to fetch YouTube data</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* YouTube Reports */}
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Available Reports</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {YOUTUBE_REPORTS.map((report) => (
+                        <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-red-300 hover:shadow-md transition-all duration-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <span className="text-2xl">{report.icon}</span>
+                              <h5 className="font-medium text-gray-900">{report.name}</h5>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => runReport('youtube', report.key)}
+                              disabled={isLoading}
+                              className="w-full px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 disabled:opacity-50 text-sm"
+                            >
+                              {isLoading ? 'Running...' : 'Run Report'}
+                            </button>
+                            <button
+                              onClick={() => loadSavedReport('youtube', report.key)}
+                              disabled={isLoading}
+                              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
+                            >
+                              Load Saved
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M8.707 7.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2a1 1 0 00-1.414-1.414L11 7.586V3a1 1 0 10-2 0v4.586l-.293-.293z"/>
-                      <path d="M3 5a2 2 0 012-2h1a1 1 0 010 2H5v7h2l1 2h4l1-2h2V5h-1a1 1 0 110-2h1a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/>
-                    </svg>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Reports Section */}
+        {activeSection === 'reports' && (
+          <div className="space-y-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <span className="text-2xl mr-3">📋</span>
+                Reports & Analytics
+              </h3>
+              
+              {selectedReport ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-blue-800">New Reports Available</p>
-                      <p className="text-xs text-blue-700">Weekly performance reports are ready</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-purple-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                    <div>
-                      <p className="text-sm font-medium text-purple-800">Analytics Available</p>
-                      <p className="text-xs text-purple-700">
-                        <Link to="/analytics" className="underline hover:no-underline">
-                          Connect Google Analytics & YouTube
-                        </Link>
+                      <h4 className="text-xl font-semibold text-gray-900">
+                        {selectedReport.source === 'ga4' ? 'Google Analytics 4' : 'YouTube Analytics'} - {selectedReport.reportType}
+                      </h4>
+                      <p className="text-gray-600">
+                        {selectedReport.recordCount} records found
                       </p>
                     </div>
+                    <button
+                      onClick={() => setSelectedReport(null)}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200"
+                    >
+                      Close Report
+                    </button>
                   </div>
-                </div>
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <div>
-                      <p className="text-sm font-medium text-green-800">Payment Processed</p>
-                      <p className="text-xs text-green-700">Influencer payments completed</p>
+
+                  {/* Report Data Display */}
+                  <div className="bg-gray-50 rounded-xl p-6 max-h-96 overflow-y-auto">
+                    <div className="space-y-4">
+                      {selectedReport.data.map((item, index) => (
+                        <div key={index} className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.entries(item).map(([key, value]) => (
+                              <div key={key} className="flex justify-between">
+                                <span className="font-medium text-gray-700 capitalize">
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                </span>
+                                <span className="text-gray-900">{value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl">📊</span>
+                  </div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-3">No Report Selected</h4>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Generate reports from Google Analytics or YouTube Analytics to view detailed insights here
+                  </p>
+                  <div className="flex justify-center space-x-4">
+                    <button
+                      onClick={() => setActiveSection('ga4')}
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
+                    >
+                      Go to GA4 Reports
+                    </button>
+                    <button
+                      onClick={() => setActiveSection('youtube')}
+                      className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200"
+                    >
+                      Go to YouTube Reports
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Analytics Status Widget */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Analytics Status</h3>
-                <Link 
-                  to="/analytics" 
-                  className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                >
-                  Manage →
-                </Link>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {/* GA4 Status */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Google Analytics</p>
-                      <p className="text-xs text-gray-600">Track website performance</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                    Not Connected
-                  </span>
-                </div>
-
-                {/* YouTube Status */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">YouTube Analytics</p>
-                      <p className="text-xs text-gray-600">Track video performance</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                    Not Connected
-                  </span>
-                </div>
-
-                {/* Quick Connect Button */}
-                <Link 
-                  to="/analytics"
-                  className="w-full mt-4 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Connect Data Sources
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );

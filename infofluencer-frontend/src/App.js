@@ -4,8 +4,6 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import './App.css';
-// Import ekle
-import AnalyticsPage from './pages/AnalyticsPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -54,16 +52,6 @@ function App() {
               </ProtectedRoute>
             } 
           />
-        
-         <Route 
-          path="/analytics" 
-          element={
-            <ProtectedRoute>
-              <AnalyticsPage />
-            </ProtectedRoute>
-          } 
-        />
-
 
           {/* Catch all route - redirect to login */}
           <Route path="*" element={<Navigate to="/login" replace />} />
