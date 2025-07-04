@@ -1,7 +1,8 @@
-// Dashboard.js - Modern Infofluencer Dashboard
+// Dashboard.js - Modern Infofluencer Dashboard with Auto Data Fetching
 // Bu dosya /src/pages/Dashboard.js olacak
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // API fonksiyonları
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
@@ -66,7 +67,7 @@ const dashboardApi = {
     }
   },
 
-  // Save GA4 Property ID
+  // Save GA4 Property ID - Otomatik veri çekme ile
   saveGA4PropertyId: async (propertyId) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/company/auth/ga4/property/`, {
@@ -81,7 +82,11 @@ const dashboardApi = {
       const data = await response.json();
       
       if (response.ok) {
-        return { success: true, data: data };
+        return { 
+          success: true, 
+          data: data,
+          message: data.message || 'Property ID saved and data fetch started!'
+        };
       } else {
         return { success: false, message: data.error || 'Failed to save property ID' };
       }
@@ -91,7 +96,101 @@ const dashboardApi = {
     }
   },
 
-  // Run GA4 Report
+  // Dashboard API endpoints
+  getAnalyticsOverview: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/dashboard/overview/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to get analytics overview' };
+      }
+    } catch (error) {
+      console.error('Analytics overview error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  getAudienceInsights: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/dashboard/audience/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to get audience insights' };
+      }
+    } catch (error) {
+      console.error('Audience insights error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  getTrafficAnalysis: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/dashboard/traffic/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to get traffic analysis' };
+      }
+    } catch (error) {
+      console.error('Traffic analysis error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // Manuel veri çekme (fallback)
+  fetchAllData: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/company/reports/fetch-all/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: data.error || 'Failed to fetch data' };
+      }
+    } catch (error) {
+      console.error('Data fetch error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  },
+
+  // ESKİ FONKSİYONLAR (Geriye dönük uyumluluk için)
   runGA4Report: async (reportType) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/company/reports/ga4/run/`, {
@@ -116,7 +215,6 @@ const dashboardApi = {
     }
   },
 
-  // Run YouTube Report
   runYouTubeReport: async (reportType) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/company/reports/youtube/run/`, {
@@ -141,7 +239,6 @@ const dashboardApi = {
     }
   },
 
-  // Get GA4 Data
   getGA4Data: async (reportType) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=ga4&report_type=${reportType}`, {
@@ -165,7 +262,6 @@ const dashboardApi = {
     }
   },
 
-  // Get YouTube Data
   getYouTubeData: async (reportType) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=youtube&report_type=${reportType}`, {
@@ -189,7 +285,6 @@ const dashboardApi = {
     }
   },
 
-  // Check Connections
   checkConnections: async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/company/analytics/connections/`, {
@@ -215,15 +310,25 @@ const dashboardApi = {
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [connections, setConnections] = useState({ ga4: false, youtube: false });
-  const [ga4PropertySet, setGA4PropertySet] = useState(false); // Property ID durumu
+  const [ga4PropertySet, setGA4PropertySet] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [ga4PropertyId, setGA4PropertyId] = useState('');
   const [selectedReport, setSelectedReport] = useState(null);
+  
+  // Dashboard verileri için
+  const [dashboardData, setDashboardData] = useState({
+    overview: null,
+    audience: null,
+    traffic: null
+  });
+  const [dataFetchInProgress, setDataFetchInProgress] = useState(false);
+  const [hasAnalyticsData, setHasAnalyticsData] = useState(false);
 
   // Report types
   const GA4_REPORTS = [
@@ -255,7 +360,7 @@ const Dashboard = () => {
     // URL'den mesaj parametrelerini kontrol et
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('ga4_connected') === 'true') {
-      showMessage('GA4 successfully connected!', 'success');
+      showMessage('GA4 successfully connected! Please set your Property ID to start data collection.', 'success');
       window.history.replaceState({}, document.title, window.location.pathname);
       setTimeout(checkConnections, 1000);
     }
@@ -269,6 +374,47 @@ const Dashboard = () => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
+
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      // Paralel olarak tüm dashboard verilerini çek
+      const [overviewResult, audienceResult, trafficResult] = await Promise.all([
+        dashboardApi.getAnalyticsOverview(),
+        dashboardApi.getAudienceInsights(),
+        dashboardApi.getTrafficAnalysis()
+      ]);
+
+      const newDashboardData = {
+        overview: overviewResult.success ? overviewResult.data : null,
+        audience: audienceResult.success ? audienceResult.data : null,
+        traffic: trafficResult.success ? trafficResult.data : null
+      };
+
+      setDashboardData(newDashboardData);
+      
+      // Herhangi bir veri var mı kontrol et
+      const hasData = newDashboardData.overview || newDashboardData.audience || newDashboardData.traffic;
+      setHasAnalyticsData(hasData);
+
+      if (!hasData) {
+        showMessage('No analytics data found. Data might still be processing or you may need to fetch data manually.', 'info');
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      showMessage('Error loading dashboard data', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Dashboard verilerini yükle
+  useEffect(() => {
+    if (ga4PropertySet) {
+      loadDashboardData();
+    }
+  }, [ga4PropertySet, loadDashboardData]);
 
   const checkConnections = async () => {
     try {
@@ -330,6 +476,7 @@ const Dashboard = () => {
     }
   };
 
+  // Save Property ID - Otomatik veri çekme ile
   const savePropertyId = async () => {
     if (!ga4PropertyId.trim()) {
       showMessage('Please enter a valid Property ID', 'error');
@@ -338,32 +485,75 @@ const Dashboard = () => {
 
     try {
       setIsLoading(true);
+      setDataFetchInProgress(true);
+      
       const result = await dashboardApi.saveGA4PropertyId(ga4PropertyId);
       if (result.success) {
-        showMessage('Property ID saved successfully!', 'success');
-        setGA4PropertySet(true); // Hemen state'i güncelle
+        showMessage('Property ID saved! 🚀 Automatically fetching all your analytics data...', 'success');
+        setGA4PropertySet(true);
+        
+        // 5 saniye sonra dashboard verilerini yükle
+        setTimeout(() => {
+          loadDashboardData();
+          setDataFetchInProgress(false);
+        }, 5000);
+        
         // Connections'ı yeniden kontrol et
-        setTimeout(checkConnections, 500);
+        setTimeout(checkConnections, 1000);
       } else {
         showMessage(result.message || 'Failed to save Property ID', 'error');
+        setDataFetchInProgress(false);
       }
     } catch (error) {
       showMessage('Failed to save Property ID', 'error');
+      setDataFetchInProgress(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Property ID'yi backend'den silmek için
+  // Manuel veri çekme fonksiyonu
+  const handleManualDataFetch = async () => {
+    try {
+      setIsLoading(true);
+      setDataFetchInProgress(true);
+      
+      const result = await dashboardApi.fetchAllData();
+      if (result.success) {
+        showMessage(`Data fetch completed! ${result.data.successful_reports} reports fetched successfully.`, 'success');
+        setTimeout(() => {
+          loadDashboardData();
+          setDataFetchInProgress(false);
+        }, 2000);
+      } else {
+        showMessage(result.message || 'Failed to fetch data', 'error');
+        setDataFetchInProgress(false);
+      }
+    } catch (error) {
+      showMessage('Failed to fetch data', 'error');
+      setDataFetchInProgress(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Analytics Dashboard'a yönlendirme
+  const goToAnalyticsDashboard = () => {
+    navigate('/analytics');
+  };
+
+  // Property ID'yi backend'den güncellemek için
+  // eslint-disable-next-line no-unused-vars
   const savePropertyIdBackend = async (propertyId) => {
     try {
-      await dashboardApi.saveGA4PropertyId(propertyId || ''); // Empty string if null
+      await dashboardApi.saveGA4PropertyId(propertyId || '');
       setTimeout(checkConnections, 500);
     } catch (error) {
       console.error('Error updating property ID:', error);
     }
   };
 
+  // ESKİ FONKSİYONLAR (Manuel rapor çekme için)
   const runReport = async (source, reportType) => {
     try {
       setIsLoading(true);
@@ -426,6 +616,24 @@ const Dashboard = () => {
     window.location.href = '/login';
   };
 
+  // Yardımcı fonksiyonlar
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num?.toLocaleString() || '0';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Never';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-orange-100">
       {/* Header */}
@@ -476,10 +684,38 @@ const Dashboard = () => {
       {message && (
         <div className={`mx-4 mt-4 p-4 rounded-xl border ${
           messageType === 'success' 
-            ? 'bg-green-50 border-green-200 text-green-700' 
+            ? 'bg-green-50 border-green-200 text-green-700'
+            : messageType === 'info'
+            ? 'bg-blue-50 border-blue-200 text-blue-700' 
             : 'bg-red-50 border-red-200 text-red-700'
         }`}>
           {message}
+        </div>
+      )}
+
+      {/* Data Fetch Progress */}
+      {dataFetchInProgress && (
+        <div className="mx-4 mt-4 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <h3 className="font-semibold text-blue-900">Fetching Your Analytics Data</h3>
+          </div>
+          <p className="text-blue-700 text-sm mb-3">
+            We're automatically collecting all your GA4 data including:
+          </p>
+          <ul className="text-sm text-blue-600 grid grid-cols-2 gap-2">
+            <li>• User acquisition sources</li>
+            <li>• Geographic data</li>
+            <li>• Device categories</li>
+            <li>• Age demographics</li>
+            <li>• Session sources</li>
+            <li>• Operating systems</li>
+            <li>• Traffic analysis</li>
+            <li>• Engagement metrics</li>
+          </ul>
+          <p className="text-blue-700 text-sm mt-3">
+            This will take a few moments. You can refresh the page or wait for automatic updates.
+          </p>
         </div>
       )}
 
@@ -509,13 +745,14 @@ const Dashboard = () => {
         <div className="flex space-x-2 mb-8 bg-white/70 backdrop-blur-sm p-2 rounded-2xl border border-white/50">
           {[
             { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'ga4', label: 'Google Analytics', icon: '📈' },
-            { id: 'youtube', label: 'YouTube Analytics', icon: '📺' },
-            { id: 'reports', label: 'Reports', icon: '📋' }
+            { id: 'analytics-dashboard', label: 'Analytics Dashboard', icon: '🚀' },
+            { id: 'ga4', label: 'GA4 Setup', icon: '📈' },
+            { id: 'youtube', label: 'YouTube Setup', icon: '📺' },
+            { id: 'reports', label: 'Manual Reports', icon: '📋' }
           ].map((section) => (
             <button
               key={section.id}
-              onClick={() => setActiveSection(section.id)}
+              onClick={() => section.id === 'analytics-dashboard' ? goToAnalyticsDashboard() : setActiveSection(section.id)}
               className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
                 activeSection === section.id
                   ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-200'
@@ -531,6 +768,45 @@ const Dashboard = () => {
         {/* Overview Section */}
         {activeSection === 'overview' && (
           <div className="space-y-8">
+            {/* Analytics Data Preview */}
+            {hasAnalyticsData && dashboardData.overview && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-blue-900">📊 Your Analytics at a Glance</h3>
+                    <p className="text-blue-700">Latest data from your connected GA4 property</p>
+                  </div>
+                  <button
+                    onClick={goToAnalyticsDashboard}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    View Full Dashboard
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Total Users</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatNumber(dashboardData.overview.overview?.total_users)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Total Sessions</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatNumber(dashboardData.overview.overview?.total_sessions)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Engagement Rate</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.overview?.avg_engagement_rate}%</p>
+                  </div>
+                </div>
+                
+                {dashboardData.overview.overview?.data_last_updated && (
+                  <p className="text-xs text-blue-600 mt-3">
+                    Last updated: {formatDate(dashboardData.overview.overview.data_last_updated)}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
@@ -598,13 +874,13 @@ const Dashboard = () => {
                 </button>
 
                 <button 
-                  onClick={() => setActiveSection('ga4')}
+                  onClick={goToAnalyticsDashboard}
                   className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200"
                 >
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
                     <span className="text-2xl">📊</span>
                   </div>
-                  <span className="font-medium text-gray-700">Google Analytics</span>
+                  <span className="font-medium text-gray-700">Analytics Dashboard</span>
                 </button>
 
                 <button 
@@ -614,7 +890,7 @@ const Dashboard = () => {
                   <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-red-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
                     <span className="text-2xl">📺</span>
                   </div>
-                  <span className="font-medium text-gray-700">YouTube Analytics</span>
+                  <span className="font-medium text-gray-700">YouTube Setup</span>
                 </button>
 
                 <button className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200">
@@ -635,21 +911,48 @@ const Dashboard = () => {
                     Google Analytics 4
                   </h3>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    connections.ga4 
+                    connections.ga4 && ga4PropertySet
                       ? 'bg-green-100 text-green-700' 
+                      : connections.ga4
+                      ? 'bg-yellow-100 text-yellow-700'
                       : 'bg-gray-100 text-gray-600'
                   }`}>
-                    {connections.ga4 ? '✅ Connected' : '❌ Not Connected'}
+                    {connections.ga4 && ga4PropertySet ? '✅ Ready' : connections.ga4 ? '⚙️ Setup Needed' : '❌ Not Connected'}
                   </span>
                 </div>
                 <p className="text-gray-600 mb-4">Track website performance and user behavior</p>
-                {!connections.ga4 && (
+                
+                {!connections.ga4 ? (
                   <button
                     onClick={() => setActiveSection('ga4')}
                     className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg shadow-blue-200"
                   >
                     Connect Google Analytics
                   </button>
+                ) : !ga4PropertySet ? (
+                  <button
+                    onClick={() => setActiveSection('ga4')}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-xl font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all duration-200 shadow-lg shadow-yellow-200"
+                  >
+                    Complete Setup
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <button
+                      onClick={goToAnalyticsDashboard}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg shadow-green-200"
+                    >
+                      View Analytics Dashboard
+                    </button>
+                    {!hasAnalyticsData && (
+                      <button
+                        onClick={handleManualDataFetch}
+                        className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-medium hover:bg-blue-200 transition-all duration-200 text-sm"
+                      >
+                        Fetch Data Manually
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -676,7 +979,7 @@ const Dashboard = () => {
                     Connect YouTube Analytics
                   </button>
                 )}
-</div>
+              </div>
             </div>
           </div>
         )}
@@ -687,7 +990,7 @@ const Dashboard = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
               <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                 <span className="w-3 h-3 rounded-full bg-blue-500 mr-3"></span>
-                Google Analytics 4 Integration
+                Google Analytics 4 Setup
               </h3>
               
               {!connections.ga4 ? (
@@ -716,7 +1019,7 @@ const Dashboard = () => {
                       </div>
                       <div>
                         <p className="font-medium text-green-900">Google Analytics Connected</p>
-                        <p className="text-sm text-green-600">Ready to fetch analytics data</p>
+                        <p className="text-sm text-green-600">Ready to configure property</p>
                       </div>
                     </div>
                   </div>
@@ -738,13 +1041,14 @@ const Dashboard = () => {
                               onChange={(e) => setGA4PropertyId(e.target.value)}
                               placeholder="Enter your GA4 Property ID (e.g., 123456789)"
                               className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              disabled={dataFetchInProgress}
                             />
                             <button
                               onClick={savePropertyId}
-                              disabled={isLoading || !ga4PropertyId.trim()}
+                              disabled={isLoading || !ga4PropertyId.trim() || dataFetchInProgress}
                               className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50"
                             >
-                              {isLoading ? 'Saving...' : 'Save'}
+                              {dataFetchInProgress ? 'Processing...' : isLoading ? 'Saving...' : 'Save & Fetch Data'}
                             </button>
                           </div>
                         </div>
@@ -752,7 +1056,8 @@ const Dashboard = () => {
                           <p className="text-sm text-blue-700">
                             <strong>How to find your GA4 Property ID:</strong><br/>
                             1. Go to Google Analytics → Admin → Property Settings<br/>
-                            2. Copy the Property ID (numbers only)
+                            2. Copy the Property ID (numbers only)<br/>
+                            3. When you save it, we'll automatically fetch all your analytics data!
                           </p>
                         </div>
                       </div>
@@ -767,6 +1072,7 @@ const Dashboard = () => {
                             onClick={() => {
                               setGA4PropertySet(false);
                               setGA4PropertyId('');
+                              setHasAnalyticsData(false);
                               savePropertyIdBackend('');
                             }}
                             className="text-orange-600 hover:text-orange-700 px-3 py-1 rounded-lg hover:bg-orange-50 transition-all duration-200 text-sm"
@@ -774,43 +1080,75 @@ const Dashboard = () => {
                             Change
                           </button>
                         </div>
+
+                        {/* Analytics Dashboard Access */}
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+                          <h4 className="text-lg font-bold text-green-900 mb-3">🎉 Analytics Ready!</h4>
+                          <p className="text-green-700 mb-4">
+                            Your GA4 is configured and data has been automatically collected. 
+                            View your comprehensive analytics dashboard with all insights.
+                          </p>
+                          <div className="flex space-x-3">
+                            <button
+                              onClick={goToAnalyticsDashboard}
+                              className="px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-all duration-200 shadow-lg shadow-green-200"
+                            >
+                              🚀 View Analytics Dashboard
+                            </button>
+                            {!hasAnalyticsData && (
+                              <button
+                                onClick={handleManualDataFetch}
+                                className="px-6 py-3 bg-blue-100 text-blue-700 rounded-xl font-medium hover:bg-blue-200 transition-all duration-200"
+                              >
+                                Refresh Data
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* GA4 Reports */}
+                  {/* Manual Reports - Legacy */}
                   {ga4PropertySet && (
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Available Reports</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {GA4_REPORTS.map((report) => (
-                          <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-3">
-                                <span className="text-2xl">{report.icon}</span>
-                                <h5 className="font-medium text-gray-900">{report.name}</h5>
+                    <details className="bg-gray-50 rounded-xl">
+                      <summary className="p-4 cursor-pointer font-medium text-gray-700 hover:text-gray-900">
+                        🔧 Advanced: Manual Report Generation
+                      </summary>
+                      <div className="p-4 pt-0">
+                        <p className="text-sm text-gray-600 mb-4">
+                          Use these options for manual report generation if needed. The analytics dashboard above provides all data automatically.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {GA4_REPORTS.map((report) => (
+                            <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center space-x-3">
+                                  <span className="text-2xl">{report.icon}</span>
+                                  <h5 className="font-medium text-gray-900">{report.name}</h5>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <button
+                                  onClick={() => runReport('ga4', report.key)}
+                                  disabled={isLoading}
+                                  className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 text-sm"
+                                >
+                                  {isLoading ? 'Running...' : 'Run Report'}
+                                </button>
+                                <button
+                                  onClick={() => loadSavedReport('ga4', report.key)}
+                                  disabled={isLoading}
+                                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
+                                >
+                                  Load Saved
+                                </button>
                               </div>
                             </div>
-                            <div className="space-y-2">
-                              <button
-                                onClick={() => runReport('ga4', report.key)}
-                                disabled={isLoading}
-                                className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 text-sm"
-                              >
-                                {isLoading ? 'Running...' : 'Run Report'}
-                              </button>
-                              <button
-                                onClick={() => loadSavedReport('ga4', report.key)}
-                                disabled={isLoading}
-                                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
-                              >
-                                Load Saved
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </details>
                   )}
                 </div>
               )}
@@ -902,15 +1240,23 @@ const Dashboard = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
               <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                 <span className="text-2xl mr-3">📋</span>
-                Reports & Analytics
+                Manual Reports & Raw Data
               </h3>
+              
+              <div className="bg-blue-50 rounded-xl p-4 mb-6">
+                <p className="text-blue-700 text-sm">
+                  <strong>💡 Tip:</strong> For comprehensive analytics with automatic data collection, 
+                  use the <button onClick={goToAnalyticsDashboard} className="underline font-medium">Analytics Dashboard</button> instead. 
+                  This section is for manual report generation and raw data access.
+                </p>
+              </div>
               
               {selectedReport ? (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-xl font-semibold text-gray-900">
-                        {selectedReport.source === 'ga4' ? 'Google Analytics 4' : 'YouTube Analytics'} - {selectedReport.reportType}
+                        {`${selectedReport.source === 'ga4' ? 'Google Analytics 4' : 'YouTube Analytics'} - ${selectedReport.reportType}`}
                       </h4>
                       <p className="text-gray-600">
                         {selectedReport.recordCount} records found
@@ -920,51 +1266,196 @@ const Dashboard = () => {
                       onClick={() => setSelectedReport(null)}
                       className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200"
                     >
-                      Close Report
+                      Clear Report
                     </button>
                   </div>
 
-                  {/* Report Data Display */}
-                  <div className="bg-gray-50 rounded-xl p-6 max-h-96 overflow-y-auto">
-                    <div className="space-y-4">
-                      {selectedReport.data.map((item, index) => (
-                        <div key={index} className="bg-white rounded-lg p-4 border border-gray-200">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Object.entries(item).map(([key, value]) => (
-                              <div key={key} className="flex justify-between">
-                                <span className="font-medium text-gray-700 capitalize">
-                                  {key.replace(/([A-Z])/g, ' $1').trim()}:
-                                </span>
-                                <span className="text-gray-900">{value}</span>
-                              </div>
+                  {/* Data Display */}
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          {selectedReport.data.length > 0 && 
+                            Object.keys(selectedReport.data[0]).map((key) => (
+                              <th key={key} className="text-left py-3 px-4 font-medium text-gray-700 capitalize">
+                                {key.replace(/([A-Z])/g, ' $1').trim()}
+                              </th>
+                            ))
+                          }
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedReport.data.slice(0, 10).map((row, index) => (
+                          <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                            {Object.values(row).map((value, i) => (
+                              <td key={i} className="py-3 px-4 text-gray-900">
+                                {typeof value === 'number' ? value.toLocaleString() : String(value)}
+                              </td>
                             ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    
+                    {selectedReport.data.length > 10 && (
+                      <div className="mt-4 text-center text-gray-600">
+                        Showing first 10 of {selectedReport.recordCount} records
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">📊</span>
+                  <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl">📋</span>
                   </div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-3">No Report Selected</h4>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Generate reports from Google Analytics or YouTube Analytics to view detailed insights here
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Report Selected</h3>
+                  <p className="text-gray-600 mb-6">
+                    Generate or load a report from GA4 or YouTube Analytics to view data here
                   </p>
                   <div className="flex justify-center space-x-4">
                     <button
                       onClick={() => setActiveSection('ga4')}
                       className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
                     >
-                      Go to GA4 Reports
+                      Go to GA4
                     </button>
                     <button
                       onClick={() => setActiveSection('youtube')}
                       className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200"
                     >
-                      Go to YouTube Reports
+                      Go to YouTube
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Report Generation Grid */}
+              {(connections.ga4 || connections.youtube) && (
+                <div className="mt-8 space-y-6">
+                  {/* GA4 Reports */}
+                  {connections.ga4 && ga4PropertySet && (
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <span className="w-3 h-3 rounded-full bg-blue-500 mr-3"></span>
+                        GA4 Reports
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {GA4_REPORTS.map((report) => (
+                          <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-2xl">{report.icon}</span>
+                                <h5 className="font-medium text-gray-900">{report.name}</h5>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => runReport('ga4', report.key)}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 text-sm"
+                              >
+                                {isLoading ? 'Running...' : 'Run Report'}
+                              </button>
+                              <button
+                                onClick={() => loadSavedReport('ga4', report.key)}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
+                              >
+                                Load Saved
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* YouTube Reports */}
+                  {connections.youtube && (
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <span className="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
+                        YouTube Reports
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {YOUTUBE_REPORTS.map((report) => (
+                          <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-red-300 hover:shadow-md transition-all duration-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-2xl">{report.icon}</span>
+                                <h5 className="font-medium text-gray-900">{report.name}</h5>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => runReport('youtube', report.key)}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 disabled:opacity-50 text-sm"
+                              >
+                                {isLoading ? 'Running...' : 'Run Report'}
+                              </button>
+                              <button
+                                onClick={() => loadSavedReport('youtube', report.key)}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
+                              >
+                                Load Saved
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bulk Actions */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Bulk Actions</h4>
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={handleManualDataFetch}
+                        disabled={isLoading || dataFetchInProgress}
+                        className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50"
+                      >
+                        {dataFetchInProgress ? 'Fetching All Data...' : 'Fetch All Available Data'}
+                      </button>
+                      <button
+                        onClick={goToAnalyticsDashboard}
+                        className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200"
+                      >
+                        View Analytics Dashboard
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-3">
+                      Use "Fetch All Available Data" to manually refresh all reports, or go to the Analytics Dashboard for a comprehensive view.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Connection Required Message */}
+              {!connections.ga4 && !connections.youtube && (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl">🔌</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Analytics Connected</h3>
+                  <p className="text-gray-600 mb-6">
+                    Connect your GA4 or YouTube Analytics to start generating reports
+                  </p>
+                  <div className="flex justify-center space-x-4">
+                    <button
+                      onClick={() => setActiveSection('ga4')}
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
+                    >
+                      Connect GA4
+                    </button>
+                    <button
+                      onClick={() => setActiveSection('youtube')}
+                      className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200"
+                    >
+                      Connect YouTube
                     </button>
                   </div>
                 </div>
@@ -973,6 +1464,25 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="bg-white/50 backdrop-blur-sm border-t border-white/20 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold">I</span>
+              </div>
+              <span className="text-lg font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">
+                Infofluencer
+              </span>
+            </div>
+            <p className="text-gray-600">
+              Empowering brands with data-driven influencer marketing
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

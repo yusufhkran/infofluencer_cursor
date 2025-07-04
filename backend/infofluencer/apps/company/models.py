@@ -8,9 +8,9 @@ class GA4Token(models.Model):
     refresh_token = models.TextField(null=True, blank=True)
     token_expiry = models.DateTimeField(null=True, blank=True)
     property_id = models.CharField(max_length=50, null=True, blank=True)
+    last_data_fetch = models.DateTimeField(null=True, blank=True)  # 🆕 YENİ ALAN
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
 class YouTubeToken(models.Model):
     company = models.OneToOneField(CompanyProfile, on_delete=models.CASCADE, related_name='youtube_token')
     access_token = models.TextField()
