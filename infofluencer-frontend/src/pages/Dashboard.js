@@ -1,1488 +1,1342 @@
-// Dashboard.js - Modern Infofluencer Dashboard with Auto Data Fetching
-// Bu dosya /src/pages/Dashboard.js olacak
+// infofluencer-frontend/src/pages/Dashboard.js - TAM ENTEGRASYONlu VERSİYON
+// LOGOUT ve HATA YÖNETİMİ DAHİL
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-// API fonksiyonları
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
-
-// Token utilities
-const tokenUtils = {
-  getAccessToken: () => localStorage.getItem('access_token'),
-  getRefreshToken: () => localStorage.getItem('refresh_token'),
-  getUserData: () => {
-    const userData = localStorage.getItem('user_data');
-    return userData ? JSON.parse(userData) : null;
-  }
-};
-
-// Dashboard API fonksiyonları
-const dashboardApi = {
-  // YouTube Authentication
-  startYouTubeAuth: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/auth/youtube/start/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to start YouTube auth' };
-      }
-    } catch (error) {
-      console.error('YouTube auth error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  // GA4 Authentication
-  startGA4Auth: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/auth/ga4/start/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to start GA4 auth' };
-      }
-    } catch (error) {
-      console.error('GA4 auth error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  // Save GA4 Property ID - Otomatik veri çekme ile
-  saveGA4PropertyId: async (propertyId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/auth/ga4/property/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ property_id: propertyId })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { 
-          success: true, 
-          data: data,
-          message: data.message || 'Property ID saved and data fetch started!'
-        };
-      } else {
-        return { success: false, message: data.error || 'Failed to save property ID' };
-      }
-    } catch (error) {
-      console.error('Save property ID error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  // Dashboard API endpoints
-  getAnalyticsOverview: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/dashboard/overview/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to get analytics overview' };
-      }
-    } catch (error) {
-      console.error('Analytics overview error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  getAudienceInsights: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/dashboard/audience/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to get audience insights' };
-      }
-    } catch (error) {
-      console.error('Audience insights error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  getTrafficAnalysis: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/dashboard/traffic/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to get traffic analysis' };
-      }
-    } catch (error) {
-      console.error('Traffic analysis error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  // Manuel veri çekme (fallback)
-  fetchAllData: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/reports/fetch-all/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to fetch data' };
-      }
-    } catch (error) {
-      console.error('Data fetch error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  // ESKİ FONKSİYONLAR (Geriye dönük uyumluluk için)
-  runGA4Report: async (reportType) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/reports/ga4/run/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ report_type: reportType })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to run GA4 report' };
-      }
-    } catch (error) {
-      console.error('GA4 report error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  runYouTubeReport: async (reportType) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/reports/youtube/run/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ report_type: reportType })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to run YouTube report' };
-      }
-    } catch (error) {
-      console.error('YouTube report error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  getGA4Data: async (reportType) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=ga4&report_type=${reportType}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'No data found' };
-      }
-    } catch (error) {
-      console.error('Get GA4 data error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  getYouTubeData: async (reportType) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/reports/saved/?source=youtube&report_type=${reportType}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'No data found' };
-      }
-    } catch (error) {
-      console.error('Get YouTube data error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  },
-
-  checkConnections: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/company/analytics/connections/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokenUtils.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return { success: true, data: data };
-      } else {
-        return { success: false, message: data.error || 'Failed to check connections' };
-      }
-    } catch (error) {
-      console.error('Connection check error:', error);
-      return { success: false, message: 'Network error occurred' };
-    }
-  }
-};
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { 
+  TrendingUp, Users, Eye, Heart, MessageCircle, Share2, Calendar, Target, Globe, Smartphone, 
+  Clock, Award, ChevronDown, RefreshCw, Download, Filter, Search, Bell, Settings, Menu, X,
+  BarChart3, PieChart as PieChartIcon, Activity, UserCheck, Zap, AlertCircle, CheckCircle,
+  Instagram, Youtube, BarChart2, TrendingDown, Star, MapPin, DollarSign, Database,
+  Wifi, WifiOff, Link, ExternalLink, Plus, LogOut
+} from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [connections, setConnections] = useState({ ga4: false, youtube: false });
-  const [ga4PropertySet, setGA4PropertySet] = useState(false);
-  const [activeSection, setActiveSection] = useState('overview');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [userType, setUserType] = useState('company');
+  const [timeRange, setTimeRange] = useState('30d');
   const [isLoading, setIsLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
-  const [ga4PropertyId, setGA4PropertyId] = useState('');
-  const [selectedReport, setSelectedReport] = useState(null);
-  
-  // Dashboard verileri için
+
+  // API bağlantı durumları
+  const [connections, setConnections] = useState({
+    ga4: false,
+    youtube: false,
+    instagram: false
+  });
+
+  // Gerçek veri state'leri
   const [dashboardData, setDashboardData] = useState({
     overview: null,
     audience: null,
-    traffic: null
+    traffic: null,
+    reports: null,
+    hasData: false,
+    lastUpdated: null
   });
-  const [dataFetchInProgress, setDataFetchInProgress] = useState(false);
-  const [hasAnalyticsData, setHasAnalyticsData] = useState(false);
 
-  // Report types
-  const GA4_REPORTS = [
-    { key: 'userAcquisitionSource', name: 'User Acquisition', icon: '👥' },
-    { key: 'sessionSourceMedium', name: 'Session Source', icon: '🌐' },
-    { key: 'operatingSystem', name: 'Operating System', icon: '💻' },
-    { key: 'userGender', name: 'User Gender', icon: '👤' },
-    { key: 'deviceCategory', name: 'Device Category', icon: '📱' },
-    { key: 'country', name: 'Country', icon: '🌍' },
-    { key: 'city', name: 'City', icon: '🏙️' },
-    { key: 'age', name: 'Age Demographics', icon: '📊' }
-  ];
+  // API Base URL
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
 
-  const YOUTUBE_REPORTS = [
-    { key: 'trafficSource', name: 'Traffic Source', icon: '🚀' },
-    { key: 'ageGroup', name: 'Age Groups', icon: '👥' },
-    { key: 'deviceType', name: 'Device Types', icon: '📺' },
-    { key: 'topSubscribers', name: 'Top Subscribers', icon: '⭐' }
-  ];
-
-  useEffect(() => {
-    // Kullanıcı bilgilerini localStorage'dan al
+  // Token utilities
+  const getAccessToken = () => localStorage.getItem('access_token');
+  const getUserData = () => {
     const userData = localStorage.getItem('user_data');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-    checkConnections();
-    
-    // URL'den mesaj parametrelerini kontrol et
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('ga4_connected') === 'true') {
-      showMessage('GA4 successfully connected! Please set your Property ID to start data collection.', 'success');
-      window.history.replaceState({}, document.title, window.location.pathname);
-      setTimeout(checkConnections, 1000);
-    }
-    if (urlParams.get('youtube_connected') === 'true') {
-      showMessage('YouTube successfully connected!', 'success');
-      window.history.replaceState({}, document.title, window.location.pathname);
-      setTimeout(checkConnections, 1000);
-    }
-    if (urlParams.get('error')) {
-      showMessage('Authentication failed. Please try again.', 'error');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
+    return userData ? JSON.parse(userData) : null;
+  };
 
-  const loadDashboardData = useCallback(async () => {
+  // Logout fonksiyonu
+  const handleLogout = () => {
     try {
-      setIsLoading(true);
+      // Token ve user data'yı temizle
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('refresh_token'); // varsa
       
-      // Paralel olarak tüm dashboard verilerini çek
-      const [overviewResult, audienceResult, trafficResult] = await Promise.all([
-        dashboardApi.getAnalyticsOverview(),
-        dashboardApi.getAudienceInsights(),
-        dashboardApi.getTrafficAnalysis()
-      ]);
-
-      const newDashboardData = {
-        overview: overviewResult.success ? overviewResult.data : null,
-        audience: audienceResult.success ? audienceResult.data : null,
-        traffic: trafficResult.success ? trafficResult.data : null
-      };
-
-      setDashboardData(newDashboardData);
+      // State'leri sıfırla
+      setUser(null);
+      setDashboardData({
+        overview: null,
+        audience: null,
+        traffic: null,
+        reports: null,
+        hasData: false,
+        lastUpdated: null
+      });
+      setConnections({
+        ga4: false,
+        youtube: false,
+        instagram: false
+      });
       
-      // Herhangi bir veri var mı kontrol et
-      const hasData = newDashboardData.overview || newDashboardData.audience || newDashboardData.traffic;
-      setHasAnalyticsData(hasData);
+      // Login sayfasına yönlendir
+      navigate('/login');
+      
+      showMessage('Başarıyla çıkış yapıldı', 'success');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Yine de login'e yönlendir
+      navigate('/login');
+    }
+  };
 
-      if (!hasData) {
-        showMessage('No analytics data found. Data might still be processing or you may need to fetch data manually.', 'info');
+  // Mesaj gösterme fonksiyonu
+  const showMessage = (msg, type = 'info') => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => {
+      setMessage('');
+      setMessageType('');
+    }, 5000);
+  };
+
+  // Geliştirilmiş API fonksiyonu
+  const apiCall = async (endpoint, options = {}) => {
+    try {
+      const token = getAccessToken();
+      
+      if (!token) {
+        // Token yoksa login'e yönlendir
+        navigate('/login');
+        throw new Error('No access token');
+      }
+
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
+      });
+
+      // 401 Unauthorized - Token geçersiz
+      if (response.status === 401) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user_data');
+        navigate('/login');
+        throw new Error('Unauthorized - redirecting to login');
+      }
+
+      // 403 Forbidden - Yetki yok
+      if (response.status === 403) {
+        showMessage('Bu işlem için yetkiniz bulunmuyor', 'error');
+        throw new Error('Forbidden');
+      }
+
+      // 500 Internal Server Error
+      if (response.status === 500) {
+        console.error(`Server error on ${endpoint}:`, response.status);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
+  };
+
+  // Bağlantı durumlarını kontrol et - Geliştirilmiş
+  const checkConnections = useCallback(async () => {
+    try {
+      const response = await apiCall('/api/company/analytics/connections/');
+      if (response.success) {
+        setConnections(response.connections);
       }
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
-      showMessage('Error loading dashboard data', 'error');
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to check connections:', error);
+      
+      // 500 hatası durumunda varsayılan değerler kullan
+      if (error.message.includes('500')) {
+        console.warn('Connections endpoint not available, using defaults');
+        setConnections({
+          ga4: false,
+          youtube: false,
+          instagram: false
+        });
+        // Kullanıcıya mesaj gösterme - bu normal bir durum olabilir
+      } else {
+        showMessage('Bağlantı durumu kontrol edilemedi', 'warning');
+      }
     }
   }, []);
 
   // Dashboard verilerini yükle
-  useEffect(() => {
-    if (ga4PropertySet) {
-      loadDashboardData();
-    }
-  }, [ga4PropertySet, loadDashboardData]);
-
-  const checkConnections = async () => {
-    try {
-      const result = await dashboardApi.checkConnections();
-      if (result.success) {
-        setConnections(result.data.connections);
-        
-        // GA4 Property ID durumunu kontrol et
-        if (result.data.ga4_property_id) {
-          setGA4PropertyId(result.data.ga4_property_id);
-          setGA4PropertySet(true);
-        } else {
-          setGA4PropertyId('');
-          setGA4PropertySet(false);
-        }
-        
-        console.log('🔍 Connection Status:', result.data);
-      }
-    } catch (error) {
-      console.error('Connection check failed:', error);
-    }
-  };
-
-  const showMessage = (msg, type) => {
-    setMessage(msg);
-    setMessageType(type);
-    setTimeout(() => setMessage(''), 5000);
-  };
-
-  const handleGA4Connect = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const result = await dashboardApi.startGA4Auth();
-      if (result.success && result.data.authorization_url) {
-        window.location.href = result.data.authorization_url;
-      } else {
-        showMessage('Failed to start authentication', 'error');
-      }
-    } catch (error) {
-      showMessage('Authentication failed', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleYouTubeConnect = async () => {
-    try {
-      setIsLoading(true);
-      const result = await dashboardApi.startYouTubeAuth();
-      if (result.success && result.data.authorization_url) {
-        window.location.href = result.data.authorization_url;
-      } else {
-        showMessage('Failed to start authentication', 'error');
-      }
-    } catch (error) {
-      showMessage('Authentication failed', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Save Property ID - Otomatik veri çekme ile
-  const savePropertyId = async () => {
-    if (!ga4PropertyId.trim()) {
-      showMessage('Please enter a valid Property ID', 'error');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setDataFetchInProgress(true);
       
-      const result = await dashboardApi.saveGA4PropertyId(ga4PropertyId);
-      if (result.success) {
-        showMessage('Property ID saved! 🚀 Automatically fetching all your analytics data...', 'success');
-        setGA4PropertySet(true);
-        
-        // 5 saniye sonra dashboard verilerini yükle
+      if (userType === 'influencer') {
+        // Influencer verileri
+        const result = await apiCall('/api/influencer/dashboard/overview/');
+        setDashboardData({
+          overview: result.success ? result : null,
+          hasData: result.success && result.data,
+          lastUpdated: new Date().toISOString()
+        });
+        return;
+      }
+
+      // Company verileri - paralel çek
+      const [overviewResult, audienceResult, trafficResult] = await Promise.allSettled([
+        apiCall('/api/company/dashboard/overview/'),
+        apiCall('/api/company/dashboard/audience/'),
+        apiCall('/api/company/dashboard/traffic/')
+      ]);
+
+      const newDashboardData = {
+        overview: overviewResult.status === 'fulfilled' ? overviewResult.value : null,
+        audience: audienceResult.status === 'fulfilled' ? audienceResult.value : null,
+        traffic: trafficResult.status === 'fulfilled' ? trafficResult.value : null,
+        hasData: false,
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Herhangi bir veri var mı kontrol et
+      newDashboardData.hasData = !!(
+        (newDashboardData.overview?.success && newDashboardData.overview?.data) ||
+        (newDashboardData.audience?.success && newDashboardData.audience?.data) ||
+        (newDashboardData.traffic?.success && newDashboardData.traffic?.data)
+      );
+
+      setDashboardData(newDashboardData);
+      
+      if (newDashboardData.hasData) {
+        showMessage('Dashboard verileri başarıyla yüklendi', 'success');
+      }
+      
+    } catch (error) {
+      setError('Dashboard verileri yüklenemedi');
+      showMessage('Dashboard verileri yüklenemedi', 'error');
+      console.error('Dashboard data loading failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userType]);
+
+  // Tüm verileri çek
+  const fetchAllData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      showMessage('Tüm analytics verileri çekiliyor...', 'info');
+      
+      const response = await apiCall('/api/company/dashboard/fetch-all/', {
+        method: 'POST'
+      });
+      
+      if (response.success) {
+        showMessage(`Veri çekme tamamlandı! ${response.data.successful_reports} rapor başarıyla çekildi.`, 'success');
+        // 2 saniye sonra dashboard verilerini yenile
         setTimeout(() => {
           loadDashboardData();
-          setDataFetchInProgress(false);
-        }, 5000);
-        
-        // Connections'ı yeniden kontrol et
-        setTimeout(checkConnections, 1000);
-      } else {
-        showMessage(result.message || 'Failed to save Property ID', 'error');
-        setDataFetchInProgress(false);
-      }
-    } catch (error) {
-      showMessage('Failed to save Property ID', 'error');
-      setDataFetchInProgress(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Manuel veri çekme fonksiyonu
-  const handleManualDataFetch = async () => {
-    try {
-      setIsLoading(true);
-      setDataFetchInProgress(true);
-      
-      const result = await dashboardApi.fetchAllData();
-      if (result.success) {
-        showMessage(`Data fetch completed! ${result.data.successful_reports} reports fetched successfully.`, 'success');
-        setTimeout(() => {
-          loadDashboardData();
-          setDataFetchInProgress(false);
         }, 2000);
       } else {
-        showMessage(result.message || 'Failed to fetch data', 'error');
-        setDataFetchInProgress(false);
+        showMessage(response.message || 'Veri çekme başarısız', 'error');
       }
     } catch (error) {
-      showMessage('Failed to fetch data', 'error');
-      setDataFetchInProgress(false);
+      showMessage('Veri çekme sırasında hata oluştu', 'error');
+      console.error('Data fetch error:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loadDashboardData]);
 
-  // Analytics Dashboard'a yönlendirme
-  const goToAnalyticsDashboard = () => {
-    navigate('/analytics');
-  };
-
-  // Property ID'yi backend'den güncellemek için
-  // eslint-disable-next-line no-unused-vars
-  const savePropertyIdBackend = async (propertyId) => {
-    try {
-      await dashboardApi.saveGA4PropertyId(propertyId || '');
-      setTimeout(checkConnections, 500);
-    } catch (error) {
-      console.error('Error updating property ID:', error);
+  // Component mount
+  useEffect(() => {
+    const userData = getUserData();
+    if (userData) {
+      setUser(userData);
+      setUserType(userData.user_type || 'company');
+    } else {
+      // User data yoksa login'e yönlendir
+      navigate('/login');
+      return;
     }
-  };
+    
+    checkConnections();
+    loadDashboardData();
 
-  // ESKİ FONKSİYONLAR (Manuel rapor çekme için)
-  const runReport = async (source, reportType) => {
-    try {
-      setIsLoading(true);
-      
-      let result;
-      if (source === 'ga4') {
-        result = await dashboardApi.runGA4Report(reportType);
-      } else {
-        result = await dashboardApi.runYouTubeReport(reportType);
-      }
-
-      if (result.success) {
-        showMessage(`${reportType} report generated successfully!`, 'success');
-        setTimeout(() => loadSavedReport(source, reportType), 1000);
-      } else {
-        showMessage(result.message || 'Failed to run report', 'error');
-      }
-    } catch (error) {
-      showMessage('Failed to run report', 'error');
-    } finally {
-      setIsLoading(false);
+    // URL parametrelerini kontrol et
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('ga4_connected') === 'true') {
+      showMessage('GA4 başarıyla bağlandı!', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(checkConnections, 1000);
     }
-  };
+    if (urlParams.get('youtube_connected') === 'true') {
+      showMessage('YouTube başarıyla bağlandı!', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(checkConnections, 1000);
+    }
+    if (urlParams.get('error')) {
+      showMessage('Bağlantı kurulurken hata oluştu', 'error');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [checkConnections, loadDashboardData, navigate]);
 
-  const loadSavedReport = async (source, reportType) => {
+  // Test için geçici auth fonksiyonu
+  const startAuthTest = async (platform) => {
     try {
       setIsLoading(true);
+      showMessage(`${platform.toUpperCase()} test bağlantısı başlatılıyor...`, 'info');
       
-      let result;
-      if (source === 'ga4') {
-        result = await dashboardApi.getGA4Data(reportType);
-      } else {
-        result = await dashboardApi.getYouTubeData(reportType);
-      }
-
-      if (result.success && result.data.data) {
-        setSelectedReport({ 
-          source, 
-          reportType, 
-          data: result.data.data,
-          recordCount: result.data.record_count 
-        });
-        setActiveSection('reports');
-        showMessage(`Loaded ${result.data.record_count} records`, 'success');
-      } else {
-        showMessage('No saved data found for this report', 'error');
-        setSelectedReport(null);
-      }
+      // Test URL - gerçek auth URL'inizi buraya yazın
+      const testAuthUrl = "https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=836251990660-9edbrh38ehul6l3rxxxxxxx.apps.googleusercontent.com&redirect_uri=http://127.0.0.1:8000/api/company/auth/ga4/callback/&scope=openid%20email%20profile%20https://www.googleapis.com/auth/analytics.readonly&access_type=offline&prompt=consent";
+      
+      console.log(`Test redirect to: ${testAuthUrl}`);
+      
+      // Doğrudan yönlendir
+      window.location.href = testAuthUrl;
+      
     } catch (error) {
-      showMessage('No saved data found', 'error');
+      console.error(`${platform} test auth error:`, error);
+      showMessage(`${platform.toUpperCase()} test bağlantı hatası: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_data');
-    window.location.href = '/login';
+  // API Authentication functions - Geliştirilmiş versiyon
+  const startAuth = async (platform) => {
+    try {
+      setIsLoading(true);
+      showMessage(`${platform.toUpperCase()} bağlantısı başlatılıyor...`, 'info');
+      
+      console.log(`Starting ${platform} auth...`);
+      
+      const response = await apiCall(`/api/company/auth/${platform}/start/`, {
+        method: 'POST'
+      });
+      
+      console.log(`${platform} auth response:`, response);
+      
+      if (response.success && response.data?.auth_url) {
+        console.log(`Redirecting to: ${response.data.auth_url}`);
+        showMessage(`${platform.toUpperCase()} yetkilendirme sayfasına yönlendiriliyor...`, 'info');
+        
+        // Yönlendirme yapmadan önce kısa bir delay
+        setTimeout(() => {
+          window.location.href = response.data.auth_url;
+        }, 500);
+      } else {
+        console.error(`${platform} auth failed:`, response);
+        showMessage(`${platform.toUpperCase()} bağlantısı başlatılamadı: ${response.message || 'Bilinmeyen hata'}`, 'error');
+        
+        // Test fonksiyonunu dene
+        console.log('Trying test auth...');
+        startAuthTest(platform);
+      }
+    } catch (error) {
+      console.error(`${platform} auth error:`, error);
+      showMessage(`${platform.toUpperCase()} bağlantı hatası: ${error.message}`, 'error');
+      
+      // Hata durumunda test fonksiyonunu dene
+      console.log('Error occurred, trying test auth...');
+      startAuthTest(platform);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Yardımcı fonksiyonlar
   const formatNumber = (num) => {
+    if (!num) return '0';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toLocaleString() || '0';
+    return num.toLocaleString();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Never';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  // Renk şeması - Mor ve Turuncu odaklı
+  const colors = {
+    primary: '#8B5CF6', // Mor
+    secondary: '#F97316', // Turuncu
+    success: '#10B981',
+    danger: '#EF4444',
+    warning: '#F59E0B',
+    info: '#3B82F6',
+    gray: '#6B7280'
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-orange-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">I</span>
-                </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">
-                  Infofluencer
-                </span>
-              </div>
+  const ConnectionStatus = ({ type, connected, onConnect }) => (
+    <div 
+      onClick={() => !connected && onConnect && onConnect(type)}
+      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+        connected 
+          ? 'bg-green-50 text-green-700 border border-green-200' 
+          : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+      }`}
+    >
+      {type === 'ga4' && <BarChart3 className="w-4 h-4" />}
+      {type === 'youtube' && <Youtube className="w-4 h-4" />}
+      {type === 'instagram' && <Instagram className="w-4 h-4" />}
+      <span className="font-medium">{type.toUpperCase()}</span>
+      {connected ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+      {!connected && <Plus className="w-3 h-3 ml-1" />}
+    </div>
+  );
+
+  const NoDataCard = ({ title, description, icon: Icon, actionText, onAction }) => (
+    <div className="bg-white rounded-2xl p-8 shadow-sm border-2 border-dashed border-gray-200 text-center">
+      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+        <Icon className="w-8 h-8 text-gray-400" />
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-gray-600 mb-4">{description}</p>
+      {onAction && (
+        <button
+          onClick={onAction}
+          className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          {actionText}
+        </button>
+      )}
+    </div>
+  );
+
+  const MetricCard = ({ title, value, change, icon: Icon, color = "primary", trend = "up", hasData = false }) => {
+    if (!hasData) {
+      return (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-xl bg-gray-50">
+              <Icon className="w-6 h-6 text-gray-400" />
             </div>
+            <div className="text-sm text-gray-400">Veri yok</div>
+          </div>
+          <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
+          <p className="text-2xl font-bold text-gray-300">--</p>
+        </div>
+      );
+    }
 
-            <div className="flex items-center space-x-4">
-              {user && (
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">
-                      {user.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
-                    </span>
+    return (
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+        <div className="flex items-center justify-between mb-4">
+          <div className={`p-3 rounded-xl`} style={{ backgroundColor: `${colors[color]}20` }}>
+            <Icon className="w-6 h-6" style={{ color: colors[color] }} />
+          </div>
+          {change && (
+            <div className={`flex items-center text-sm font-medium ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+              <TrendingUp className={`w-4 h-4 mr-1 ${trend === 'down' ? 'rotate-180' : ''}`} />
+              {change}%
+            </div>
+          )}
+        </div>
+        <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
+        <p className="text-2xl font-bold text-gray-900">{value}</p>
+      </div>
+    );
+  };
+
+  // Company sidebar menü
+  const companyMenuItems = [
+    { id: 'overview', label: 'Genel Bakış', icon: TrendingUp },
+    { id: 'reports', label: 'Raporlarım', icon: BarChart3, submenu: [
+      { id: 'ga4', label: 'GA4', icon: BarChart2 },
+      { id: 'youtube', label: 'YouTube', icon: Youtube },
+      { id: 'instagram', label: 'Instagram', icon: Instagram }
+    ]},
+    { id: 'influencer-matching', label: 'Influencer Eşleştirme', icon: UserCheck },
+    { id: 'comparison', label: 'Karşılaştırma', icon: Activity },
+    { id: 'data-status', label: 'Veri Güncelleme Durumu', icon: Database },
+    { id: 'settings', label: 'Ayarlar', icon: Settings }
+  ];
+
+  // Influencer sidebar menü
+  const influencerMenuItems = [
+    { id: 'overview', label: 'Genel Bakış', icon: TrendingUp },
+    { id: 'performance', label: 'Performans Raporları', icon: BarChart3, submenu: [
+      { id: 'instagram', label: 'Instagram', icon: Instagram },
+      { id: 'tiktok', label: 'TikTok', icon: Activity },
+      { id: 'youtube', label: 'YouTube', icon: Youtube }
+    ]},
+    { id: 'category-comparison', label: 'Kategori Karşılaştırması', icon: Activity },
+    { id: 'growth-suggestions', label: 'Gelişim Önerileri', icon: Zap },
+    { id: 'profile-settings', label: 'Profil Ayarları', icon: Settings }
+  ];
+
+  const menuItems = userType === 'company' ? companyMenuItems : influencerMenuItems;
+
+  const Sidebar = () => (
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 h-20">
+        <div className="flex items-center">
+          {/* Logo */}
+          <div className="w-10 h-10 mr-3 flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="InfoFluencer Logo" 
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                // Fallback: Logo yüklenemezse gradyan background ile "i" harfi
+                e.target.style.display = 'none';
+                e.target.parentNode.innerHTML = `
+                  <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-blue-900 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">i</span>
                   </div>
-                  <div className="text-sm">
-                    <p className="font-medium text-gray-900">
-                      {user.first_name && user.last_name 
-                        ? `${user.first_name} ${user.last_name}`
-                        : user.email
-                      }
-                    </p>
-                  </div>
-                </div>
-              )}
-              <button 
-                onClick={handleLogout}
-                className="text-orange-600 hover:text-orange-700 px-4 py-2 rounded-lg hover:bg-orange-50 transition-all duration-200"
+                `;
+              }}
+            />
+          </div>
+          {/* Brand Text */}
+          <h2 className="text-xl font-bold flex items-center" style={{ 
+            fontFamily: "'Torus Pro Bold', Arial, sans-serif",
+            lineHeight: '1'
+          }}>
+            <span style={{ color: 'rgba(240,95,35,255)' }}>info</span>
+            <span style={{ color: 'rgba(0,1,102,255)' }}>fluencer</span>
+          </h2>
+        </div>
+        <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+      
+      <nav className="mt-6">
+        {menuItems.map((item) => (
+          <div key={item.id}>
+            <button
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center px-6 py-3 text-left hover:bg-gray-50 transition-colors ${
+                activeTab === item.id 
+                  ? 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' 
+                  : 'text-gray-600'
+              }`}
+            >
+              <item.icon className="w-5 h-5 mr-3" />
+              {item.label}
+              {item.submenu && <ChevronDown className="w-4 h-4 ml-auto" />}
+            </button>
+            {item.submenu && activeTab === item.id && (
+              <div className="bg-gray-50">
+                {item.submenu.map((subItem) => (
+                  <button
+                    key={subItem.id}
+                    onClick={() => setActiveTab(subItem.id)}
+                    className="w-full flex items-center px-12 py-2 text-left text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <subItem.icon className="w-4 h-4 mr-2" />
+                    {subItem.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </nav>
+    </div>
+  );
+
+  const TopBar = () => (
+    <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 h-20">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <button 
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden mr-4"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {userType === 'company' ? 'Firma Dashboard' : 'Influencer Dashboard'}
+            </h1>
+            {user && (
+              <p className="text-sm text-gray-600">
+                Hoş geldin, {user.first_name || user.email}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          {/* API Bağlantı Durumları */}
+          <div className="flex items-center space-x-2">
+            <ConnectionStatus 
+              type="ga4" 
+              connected={connections.ga4} 
+              onConnect={startAuth}
+            />
+            <ConnectionStatus 
+              type="youtube" 
+              connected={connections.youtube} 
+              onConnect={startAuth}
+            />
+            {userType === 'company' && (
+              <ConnectionStatus 
+                type="instagram" 
+                connected={connections.instagram} 
+                onConnect={startAuth}
+              />
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <select 
+              value={timeRange} 
+              onChange={(e) => setTimeRange(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="7d">Son 7 gün</option>
+              <option value="30d">Son 30 gün</option>
+              <option value="90d">Son 90 gün</option>
+              <option value="1y">Son yıl</option>
+            </select>
+            <button 
+              onClick={loadDashboardData}
+              disabled={isLoading}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+              <Bell className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => setActiveTab('settings')}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            
+            {/* LOGOUT BUTONU */}
+            <button 
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Çıkış
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const OverviewTab = () => {
+    const hasAnyConnection = connections.ga4 || connections.youtube || connections.instagram;
+    const hasOverviewData = dashboardData.overview?.success && dashboardData.overview?.data;
+
+    if (!hasAnyConnection) {
+      return (
+        <div className="space-y-6">
+          <div className="text-center py-12">
+            <WifiOff className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">API Bağlantısı Bulunamadı</h2>
+            <p className="text-gray-600 mb-6">
+              Dashboard verilerini görüntülemek için önce GA4, YouTube veya Instagram bağlantınızı kurmanız gerekiyor.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => startAuth('ga4')}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
               >
-                Logout
+                <BarChart3 className="w-5 h-5 mr-2" />
+                GA4 Bağla
+              </button>
+              <button
+                onClick={() => startAuth('youtube')}
+                className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+              >
+                <Youtube className="w-5 h-5 mr-2" />
+                YouTube Bağla
               </button>
             </div>
           </div>
         </div>
-      </header>
+      );
+    }
 
-      {/* Message Display */}
-      {message && (
-        <div className={`mx-4 mt-4 p-4 rounded-xl border ${
-          messageType === 'success' 
-            ? 'bg-green-50 border-green-200 text-green-700'
-            : messageType === 'info'
-            ? 'bg-blue-50 border-blue-200 text-blue-700' 
-            : 'bg-red-50 border-red-200 text-red-700'
-        }`}>
-          {message}
-        </div>
-      )}
-
-      {/* Data Fetch Progress */}
-      {dataFetchInProgress && (
-        <div className="mx-4 mt-4 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <h3 className="font-semibold text-blue-900">Fetching Your Analytics Data</h3>
-          </div>
-          <p className="text-blue-700 text-sm mb-3">
-            We're automatically collecting all your GA4 data including:
-          </p>
-          <ul className="text-sm text-blue-600 grid grid-cols-2 gap-2">
-            <li>• User acquisition sources</li>
-            <li>• Geographic data</li>
-            <li>• Device categories</li>
-            <li>• Age demographics</li>
-            <li>• Session sources</li>
-            <li>• Operating systems</li>
-            <li>• Traffic analysis</li>
-            <li>• Engagement metrics</li>
-          </ul>
-          <p className="text-blue-700 text-sm mt-3">
-            This will take a few moments. You can refresh the page or wait for automatic updates.
-          </p>
-        </div>
-      )}
-
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-200 border-t-orange-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 text-center">Loading...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Welcome back{user?.first_name ? `, ${user.first_name}` : ''}! 👋
-          </h1>
-          <p className="text-xl text-gray-600">
-            Manage your influencer campaigns and analytics from one place
-          </p>
-        </div>
-
-        {/* Navigation Pills */}
-        <div className="flex space-x-2 mb-8 bg-white/70 backdrop-blur-sm p-2 rounded-2xl border border-white/50">
-          {[
-            { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'analytics-dashboard', label: 'Analytics Dashboard', icon: '🚀' },
-            { id: 'ga4', label: 'GA4 Setup', icon: '📈' },
-            { id: 'youtube', label: 'YouTube Setup', icon: '📺' },
-            { id: 'reports', label: 'Manual Reports', icon: '📋' }
-          ].map((section) => (
-            <button
-              key={section.id}
-              onClick={() => section.id === 'analytics-dashboard' ? goToAnalyticsDashboard() : setActiveSection(section.id)}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-                activeSection === section.id
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-200'
-                  : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'
-              }`}
-            >
-              <span className="text-lg">{section.icon}</span>
-              <span>{section.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Overview Section */}
-        {activeSection === 'overview' && (
-          <div className="space-y-8">
-            {/* Analytics Data Preview */}
-            {hasAnalyticsData && dashboardData.overview && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-blue-900">📊 Your Analytics at a Glance</h3>
-                    <p className="text-blue-700">Latest data from your connected GA4 property</p>
-                  </div>
-                  <button
-                    onClick={goToAnalyticsDashboard}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    View Full Dashboard
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Total Users</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatNumber(dashboardData.overview.overview?.total_users)}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Total Sessions</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatNumber(dashboardData.overview.overview?.total_sessions)}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Engagement Rate</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.overview?.avg_engagement_rate}%</p>
-                  </div>
-                </div>
-                
-                {dashboardData.overview.overview?.data_last_updated && (
-                  <p className="text-xs text-blue-600 mt-3">
-                    Last updated: {formatDate(dashboardData.overview.overview.data_last_updated)}
-                  </p>
-                )}
-              </div>
+    return (
+      <div className="space-y-6">
+        {/* Bağlantı Durumu Kartları */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className={`p-6 rounded-2xl border-2 ${connections.ga4 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <BarChart3 className={`w-8 h-8 ${connections.ga4 ? 'text-green-600' : 'text-gray-400'}`} />
+              {connections.ga4 ? <CheckCircle className="w-6 h-6 text-green-600" /> : <AlertCircle className="w-6 h-6 text-gray-400" />}
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Google Analytics 4</h3>
+            <p className={`text-sm ${connections.ga4 ? 'text-green-600' : 'text-gray-500'}`}>
+              {connections.ga4 ? 'Bağlı ve veri çekiyor' : 'Bağlantı kurulmamış'}
+            </p>
+            {!connections.ga4 && (
+              <button
+                onClick={() => startAuth('ga4')}
+                className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
+              >
+                Bağla
+              </button>
             )}
+          </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Campaigns</p>
-                    <p className="text-3xl font-bold text-gray-900">12</p>
-                    <p className="text-sm text-green-600">+3 this month</p>
-                  </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">🚀</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Active Influencers</p>
-                    <p className="text-3xl font-bold text-gray-900">24</p>
-                    <p className="text-sm text-green-600">+6 this week</p>
-                  </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">👥</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Reach</p>
-                    <p className="text-3xl font-bold text-gray-900">2.4M</p>
-                    <p className="text-sm text-green-600">+12% growth</p>
-                  </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">📈</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">ROI</p>
-                    <p className="text-3xl font-bold text-gray-900">340%</p>
-                    <p className="text-sm text-green-600">Above average</p>
-                  </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">💰</span>
-                  </div>
-                </div>
-              </div>
+          <div className={`p-6 rounded-2xl border-2 ${connections.youtube ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <Youtube className={`w-8 h-8 ${connections.youtube ? 'text-red-600' : 'text-gray-400'}`} />
+              {connections.youtube ? <CheckCircle className="w-6 h-6 text-green-600" /> : <AlertCircle className="w-6 h-6 text-gray-400" />}
             </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">YouTube Analytics</h3>
+            <p className={`text-sm ${connections.youtube ? 'text-green-600' : 'text-gray-500'}`}>
+              {connections.youtube ? 'Bağlı ve veri çekiyor' : 'Bağlantı kurulmamış'}
+            </p>
+            {!connections.youtube && (
+              <button
+                onClick={() => startAuth('youtube')}
+                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+              >
+                Bağla
+              </button>
+            )}
+          </div>
 
-            {/* Quick Actions */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
-                    <span className="text-2xl">🔍</span>
-                  </div>
-                  <span className="font-medium text-gray-700">Find Influencers</span>
-                </button>
-
-                <button 
-                  onClick={goToAnalyticsDashboard}
-                  className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
-                    <span className="text-2xl">📊</span>
-                  </div>
-                  <span className="font-medium text-gray-700">Analytics Dashboard</span>
-                </button>
-
-                <button 
-                  onClick={() => setActiveSection('youtube')}
-                  className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-red-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
-                    <span className="text-2xl">📺</span>
-                  </div>
-                  <span className="font-medium text-gray-700">YouTube Setup</span>
-                </button>
-
-                <button className="group flex flex-col items-center p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200">
-                    <span className="text-2xl">💬</span>
-                  </div>
-                  <span className="font-medium text-gray-700">Messages</span>
-                </button>
-              </div>
+          <div className={`p-6 rounded-2xl border-2 ${connections.instagram ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <Instagram className={`w-8 h-8 ${connections.instagram ? 'text-pink-600' : 'text-gray-400'}`} />
+              {connections.instagram ? <CheckCircle className="w-6 h-6 text-green-600" /> : <AlertCircle className="w-6 h-6 text-gray-400" />}
             </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Instagram Business</h3>
+            <p className={`text-sm ${connections.instagram ? 'text-green-600' : 'text-gray-500'}`}>
+              {connections.instagram ? 'Bağlı ve veri çekiyor' : 'Yakında geliyor'}
+            </p>
+            {!connections.instagram && (
+              <button
+                disabled
+                className="mt-3 px-4 py-2 bg-gray-400 text-white rounded-lg text-sm cursor-not-allowed"
+              >
+                Yakında
+              </button>
+            )}
+          </div>
+        </div>
 
-            {/* Analytics Status */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-blue-500 mr-3"></span>
-                    Google Analytics 4
-                  </h3>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    connections.ga4 && ga4PropertySet
-                      ? 'bg-green-100 text-green-700' 
-                      : connections.ga4
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {connections.ga4 && ga4PropertySet ? '✅ Ready' : connections.ga4 ? '⚙️ Setup Needed' : '❌ Not Connected'}
-                  </span>
-                </div>
-                <p className="text-gray-600 mb-4">Track website performance and user behavior</p>
-                
-                {!connections.ga4 ? (
-                  <button
-                    onClick={() => setActiveSection('ga4')}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg shadow-blue-200"
-                  >
-                    Connect Google Analytics
-                  </button>
-                ) : !ga4PropertySet ? (
-                  <button
-                    onClick={() => setActiveSection('ga4')}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-xl font-medium hover:from-yellow-600 hover:to-yellow-700 transition-all duration-200 shadow-lg shadow-yellow-200"
-                  >
-                    Complete Setup
-                  </button>
-                ) : (
-                  <div className="space-y-3">
-                    <button
-                      onClick={goToAnalyticsDashboard}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg shadow-green-200"
-                    >
-                      View Analytics Dashboard
-                    </button>
-                    {!hasAnalyticsData && (
-                      <button
-                        onClick={handleManualDataFetch}
-                        className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-medium hover:bg-blue-200 transition-all duration-200 text-sm"
-                      >
-                        Fetch Data Manually
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+        {/* Ana Metrikler */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard 
+            title="Toplam Oturum" 
+            value={hasOverviewData ? formatNumber(dashboardData.overview.data.totalSessions) : '--'} 
+            change={hasOverviewData ? dashboardData.overview.data.sessionGrowth : null}
+            icon={Eye} 
+            color="primary"
+            hasData={hasOverviewData}
+          />
+          <MetricCard 
+            title="Aktif Kullanıcı" 
+            value={hasOverviewData ? formatNumber(dashboardData.overview.data.activeUsers) : '--'} 
+            change={hasOverviewData ? dashboardData.overview.data.userGrowth : null}
+            icon={Users} 
+            color="info"
+            hasData={hasOverviewData}
+          />
+          <MetricCard 
+            title="Etkileşim Oranı" 
+            value={hasOverviewData ? `${dashboardData.overview.data.engagementRate}%` : '--'} 
+            change={hasOverviewData ? dashboardData.overview.data.engagementGrowth : null}
+            icon={Heart} 
+            color="secondary"
+            hasData={hasOverviewData}
+          />
+          <MetricCard 
+            title="Çıkış Oranı" 
+            value={hasOverviewData ? `${dashboardData.overview.data.bounceRate}%` : '--'} 
+            change={hasOverviewData ? dashboardData.overview.data.bounceGrowth : null}
+            icon={TrendingDown} 
+            color="warning"
+            trend="down"
+            hasData={hasOverviewData}
+          />
+        </div>
 
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
-                    YouTube Analytics
-                  </h3>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    connections.youtube 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {connections.youtube ? '✅ Connected' : '❌ Not Connected'}
-                  </span>
-                </div>
-                <p className="text-gray-600 mb-4">Monitor video performance and audience insights</p>
-                {!connections.youtube && (
-                  <button
-                    onClick={() => setActiveSection('youtube')}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg shadow-red-200"
-                  >
-                    Connect YouTube Analytics
-                  </button>
-                )}
+        {/* Veri yok durumu */}
+        {hasAnyConnection && !dashboardData.hasData && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <NoDataCard
+              title="Analytics Verisi Bulunamadı"
+              description="Henüz analytics verisi çekilmemiş. Verilerinizi almak için aşağıdaki butona tıklayın."
+              icon={BarChart3}
+              actionText="Tüm Verileri Çek"
+              onAction={fetchAllData}
+            />
+            <NoDataCard
+              title="Rapor Verisi Bulunamadı"
+              description="Detaylı raporlar için Raporlarım sekmesini ziyaret edin."
+              icon={Download}
+              actionText="Raporlara Git"
+              onAction={() => setActiveTab('reports')}
+            />
+          </div>
+        )}
+
+        {/* Hızlı Veri Çekme */}
+        {hasAnyConnection && (
+          <div className="bg-gradient-to-r from-purple-50 to-orange-50 rounded-2xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Veri Güncelleme</h3>
+                <p className="text-gray-600">Tüm bağlı platformlardan güncel verileri çekin</p>
               </div>
+              <button
+                onClick={fetchAllData}
+                disabled={isLoading}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-orange-600 text-white rounded-lg hover:from-purple-700 hover:to-orange-700 transition-all duration-300 disabled:opacity-50 flex items-center"
+              >
+                <RefreshCw className={`w-5 h-5 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                {isLoading ? 'Çekiliyor...' : 'Verileri Güncelle'}
+              </button>
             </div>
           </div>
         )}
 
-        {/* GA4 Section */}
-        {activeSection === 'ga4' && (
-          <div className="space-y-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <span className="w-3 h-3 rounded-full bg-blue-500 mr-3"></span>
-                Google Analytics 4 Setup
-              </h3>
-              
-              {!connections.ga4 ? (
-                <div className="text-center py-8">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">📊</span>
-                  </div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-3">Connect Google Analytics</h4>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Get detailed insights about your website visitors, their behavior, and conversion patterns
-                  </p>
-                  <button
-                    onClick={handleGA4Connect}
-                    disabled={isLoading}
-                    className="px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg shadow-blue-200 disabled:opacity-50"
-                  >
-                    {isLoading ? 'Connecting...' : 'Connect Google Analytics'}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <span className="text-green-600">✅</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-green-900">Google Analytics Connected</p>
-                        <p className="text-sm text-green-600">Ready to configure property</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* GA4 Property ID Section */}
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-4">GA4 Property Configuration</h4>
-                    
-                    {!ga4PropertySet ? (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            GA4 Property ID <span className="text-red-500">*</span>
-                          </label>
-                          <div className="flex space-x-3">
-                            <input
-                              type="text"
-                              value={ga4PropertyId}
-                              onChange={(e) => setGA4PropertyId(e.target.value)}
-                              placeholder="Enter your GA4 Property ID (e.g., 123456789)"
-                              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              disabled={dataFetchInProgress}
-                            />
-                            <button
-                              onClick={savePropertyId}
-                              disabled={isLoading || !ga4PropertyId.trim() || dataFetchInProgress}
-                              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50"
-                            >
-                              {dataFetchInProgress ? 'Processing...' : isLoading ? 'Saving...' : 'Save & Fetch Data'}
-                            </button>
-                          </div>
-                        </div>
-                        <div className="bg-blue-50 rounded-lg p-4">
-                          <p className="text-sm text-blue-700">
-                            <strong>How to find your GA4 Property ID:</strong><br/>
-                            1. Go to Google Analytics → Admin → Property Settings<br/>
-                            2. Copy the Property ID (numbers only)<br/>
-                            3. When you save it, we'll automatically fetch all your analytics data!
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
-                          <div>
-                            <p className="font-medium text-green-900">Property ID Configured</p>
-                            <p className="text-sm text-green-600">Property ID: {ga4PropertyId}</p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setGA4PropertySet(false);
-                              setGA4PropertyId('');
-                              setHasAnalyticsData(false);
-                              savePropertyIdBackend('');
-                            }}
-                            className="text-orange-600 hover:text-orange-700 px-3 py-1 rounded-lg hover:bg-orange-50 transition-all duration-200 text-sm"
-                          >
-                            Change
-                          </button>
-                        </div>
-
-                        {/* Analytics Dashboard Access */}
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-                          <h4 className="text-lg font-bold text-green-900 mb-3">🎉 Analytics Ready!</h4>
-                          <p className="text-green-700 mb-4">
-                            Your GA4 is configured and data has been automatically collected. 
-                            View your comprehensive analytics dashboard with all insights.
-                          </p>
-                          <div className="flex space-x-3">
-                            <button
-                              onClick={goToAnalyticsDashboard}
-                              className="px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-all duration-200 shadow-lg shadow-green-200"
-                            >
-                              🚀 View Analytics Dashboard
-                            </button>
-                            {!hasAnalyticsData && (
-                              <button
-                                onClick={handleManualDataFetch}
-                                className="px-6 py-3 bg-blue-100 text-blue-700 rounded-xl font-medium hover:bg-blue-200 transition-all duration-200"
-                              >
-                                Refresh Data
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Manual Reports - Legacy */}
-                  {ga4PropertySet && (
-                    <details className="bg-gray-50 rounded-xl">
-                      <summary className="p-4 cursor-pointer font-medium text-gray-700 hover:text-gray-900">
-                        🔧 Advanced: Manual Report Generation
-                      </summary>
-                      <div className="p-4 pt-0">
-                        <p className="text-sm text-gray-600 mb-4">
-                          Use these options for manual report generation if needed. The analytics dashboard above provides all data automatically.
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {GA4_REPORTS.map((report) => (
-                            <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center space-x-3">
-                                  <span className="text-2xl">{report.icon}</span>
-                                  <h5 className="font-medium text-gray-900">{report.name}</h5>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <button
-                                  onClick={() => runReport('ga4', report.key)}
-                                  disabled={isLoading}
-                                  className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 text-sm"
-                                >
-                                  {isLoading ? 'Running...' : 'Run Report'}
-                                </button>
-                                <button
-                                  onClick={() => loadSavedReport('ga4', report.key)}
-                                  disabled={isLoading}
-                                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
-                                >
-                                  Load Saved
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </details>
-                  )}
-                </div>
-              )}
-            </div>
+        {/* Son güncelleme bilgisi */}
+        {dashboardData.lastUpdated && (
+          <div className="text-center text-sm text-gray-500">
+            Son güncelleme: {new Date(dashboardData.lastUpdated).toLocaleString('tr-TR')}
           </div>
         )}
+      </div>
+    );
+  };
 
-        {/* YouTube Section */}
-        {activeSection === 'youtube' && (
-          <div className="space-y-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <span className="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
-                YouTube Analytics Integration
-              </h3>
-              
-              {!connections.youtube ? (
-                <div className="text-center py-8">
-                  <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-red-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">📺</span>
-                  </div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-3">Connect YouTube Analytics</h4>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Access detailed insights about your YouTube channel performance, audience demographics, and video metrics
-                  </p>
-                  <button
-                    onClick={handleYouTubeConnect}
-                    disabled={isLoading}
-                    className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg shadow-red-200 disabled:opacity-50"
-                  >
-                    {isLoading ? 'Connecting...' : 'Connect YouTube Analytics'}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <span className="text-green-600">✅</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-green-900">YouTube Analytics Connected</p>
-                        <p className="text-sm text-green-600">Ready to fetch YouTube data</p>
-                      </div>
-                    </div>
-                  </div>
+  const ReportsTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900">Raporlarım</h2>
+        <button
+          onClick={fetchAllData}
+          disabled={isLoading}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center"
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          {isLoading ? 'Yükleniyor...' : 'Veri Çek'}
+        </button>
+      </div>
 
-                  {/* YouTube Reports */}
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Available Reports</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {YOUTUBE_REPORTS.map((report) => (
-                        <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-red-300 hover:shadow-md transition-all duration-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-3">
-                              <span className="text-2xl">{report.icon}</span>
-                              <h5 className="font-medium text-gray-900">{report.name}</h5>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <button
-                              onClick={() => runReport('youtube', report.key)}
-                              disabled={isLoading}
-                              className="w-full px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 disabled:opacity-50 text-sm"
-                            >
-                              {isLoading ? 'Running...' : 'Run Report'}
-                            </button>
-                            <button
-                              onClick={() => loadSavedReport('youtube', report.key)}
-                              disabled={isLoading}
-                              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
-                            >
-                              Load Saved
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* GA4 Reports */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center mb-4">
+            <BarChart3 className="w-8 h-8 text-blue-600 mr-3" />
+            <h3 className="text-lg font-semibold text-gray-900">GA4 Raporları</h3>
+          </div>
+          {connections.ga4 ? (
+            <div className="space-y-3">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="font-medium text-gray-900">Kullanıcı Kaynakları</p>
+                <p className="text-sm text-gray-600">Ziyaretçilerin nereden geldiği</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="font-medium text-gray-900">Demografik Analiz</p>
+                <p className="text-sm text-gray-600">Yaş ve cinsiyet dağılımı</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="font-medium text-gray-900">Cihaz Analizi</p>
+                <p className="text-sm text-gray-600">Mobil, desktop kullanımı</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600 mb-3">GA4 bağlantısı gerekli</p>
+              <button
+                onClick={() => startAuth('ga4')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                GA4 Bağla
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* YouTube Reports */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center mb-4">
+            <Youtube className="w-8 h-8 text-red-600 mr-3" />
+            <h3 className="text-lg font-semibold text-gray-900">YouTube Raporları</h3>
+          </div>
+          {connections.youtube ? (
+            <div className="space-y-3">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="font-medium text-gray-900">Trafik Kaynakları</p>
+                <p className="text-sm text-gray-600">YouTube trafiğinin nereden geldiği</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="font-medium text-gray-900">Yaş Grupları</p>
+                <p className="text-sm text-gray-600">İzleyici yaş dağılımı</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="font-medium text-gray-900">Cihaz Türleri</p>
+                <p className="text-sm text-gray-600">İzlenme cihaz analizi</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600 mb-3">YouTube bağlantısı gerekli</p>
+              <button
+                onClick={() => startAuth('youtube')}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                YouTube Bağla
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Instagram Reports */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center mb-4">
+            <Instagram className="w-8 h-8 text-pink-600 mr-3" />
+            <h3 className="text-lg font-semibold text-gray-900">Instagram Raporları</h3>
+          </div>
+          <div className="text-center py-6">
+            <Clock className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600 mb-3">Yakında geliyor</p>
+            <button
+              disabled
+              className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed"
+            >
+              Geliştiriliyor
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const DataStatusTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">Veri Güncelleme Durumu</h2>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* API Durumları */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">API Bağlantı Durumları</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center">
+                <BarChart3 className="w-6 h-6 text-blue-600 mr-3" />
+                <div>
+                  <p className="font-medium text-gray-900">Google Analytics 4</p>
+                  <p className="text-sm text-gray-600">Web analytics verisi</p>
                 </div>
-              )}
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                connections.ga4 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {connections.ga4 ? 'Aktif' : 'Pasif'}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center">
+                <Youtube className="w-6 h-6 text-red-600 mr-3" />
+                <div>
+                  <p className="font-medium text-gray-900">YouTube Analytics</p>
+                  <p className="text-sm text-gray-600">Video performans verisi</p>
+                </div>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                connections.youtube ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {connections.youtube ? 'Aktif' : 'Pasif'}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center">
+                <Instagram className="w-6 h-6 text-pink-600 mr-3" />
+                <div>
+                  <p className="font-medium text-gray-900">Instagram Business</p>
+                  <p className="text-sm text-gray-600">Sosyal medya verisi</p>
+                </div>
+              </div>
+              <div className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                Geliştiriliyor
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Reports Section */}
-        {activeSection === 'reports' && (
-          <div className="space-y-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/50">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <span className="text-2xl mr-3">📋</span>
-                Manual Reports & Raw Data
-              </h3>
-              
-              <div className="bg-blue-50 rounded-xl p-4 mb-6">
-                <p className="text-blue-700 text-sm">
-                  <strong>💡 Tip:</strong> For comprehensive analytics with automatic data collection, 
-                  use the <button onClick={goToAnalyticsDashboard} className="underline font-medium">Analytics Dashboard</button> instead. 
-                  This section is for manual report generation and raw data access.
-                </p>
+        {/* Son Güncellemeler */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Son Veri Güncellemeleri</h3>
+          {dashboardData.lastUpdated ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                  <span className="text-sm font-medium text-gray-900">Dashboard Verileri</span>
+                </div>
+                <span className="text-xs text-gray-600">
+                  {new Date(dashboardData.lastUpdated).toLocaleString('tr-TR')}
+                </span>
               </div>
               
-              {selectedReport ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xl font-semibold text-gray-900">
-                        {`${selectedReport.source === 'ga4' ? 'Google Analytics 4' : 'YouTube Analytics'} - ${selectedReport.reportType}`}
-                      </h4>
-                      <p className="text-gray-600">
-                        {selectedReport.recordCount} records found
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedReport(null)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200"
-                    >
-                      Clear Report
-                    </button>
+              {connections.ga4 && (
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center">
+                    <BarChart3 className="w-5 h-5 text-blue-600 mr-2" />
+                    <span className="text-sm font-medium text-gray-900">GA4 Raporları</span>
                   </div>
-
-                  {/* Data Display */}
-                  <div className="bg-white rounded-xl p-6 border border-gray-200 overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          {selectedReport.data.length > 0 && 
-                            Object.keys(selectedReport.data[0]).map((key) => (
-                              <th key={key} className="text-left py-3 px-4 font-medium text-gray-700 capitalize">
-                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                              </th>
-                            ))
-                          }
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedReport.data.slice(0, 10).map((row, index) => (
-                          <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                            {Object.values(row).map((value, i) => (
-                              <td key={i} className="py-3 px-4 text-gray-900">
-                                {typeof value === 'number' ? value.toLocaleString() : String(value)}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    
-                    {selectedReport.data.length > 10 && (
-                      <div className="mt-4 text-center text-gray-600">
-                        Showing first 10 of {selectedReport.recordCount} records
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">📋</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Report Selected</h3>
-                  <p className="text-gray-600 mb-6">
-                    Generate or load a report from GA4 or YouTube Analytics to view data here
-                  </p>
-                  <div className="flex justify-center space-x-4">
-                    <button
-                      onClick={() => setActiveSection('ga4')}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
-                    >
-                      Go to GA4
-                    </button>
-                    <button
-                      onClick={() => setActiveSection('youtube')}
-                      className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200"
-                    >
-                      Go to YouTube
-                    </button>
-                  </div>
+                  <span className="text-xs text-gray-600">Otomatik güncelleme</span>
                 </div>
               )}
 
-              {/* Manual Report Generation Grid */}
-              {(connections.ga4 || connections.youtube) && (
-                <div className="mt-8 space-y-6">
-                  {/* GA4 Reports */}
-                  {connections.ga4 && ga4PropertySet && (
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                        <span className="w-3 h-3 rounded-full bg-blue-500 mr-3"></span>
-                        GA4 Reports
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {GA4_REPORTS.map((report) => (
-                          <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-3">
-                                <span className="text-2xl">{report.icon}</span>
-                                <h5 className="font-medium text-gray-900">{report.name}</h5>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <button
-                                onClick={() => runReport('ga4', report.key)}
-                                disabled={isLoading}
-                                className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 text-sm"
-                              >
-                                {isLoading ? 'Running...' : 'Run Report'}
-                              </button>
-                              <button
-                                onClick={() => loadSavedReport('ga4', report.key)}
-                                disabled={isLoading}
-                                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
-                              >
-                                Load Saved
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* YouTube Reports */}
-                  {connections.youtube && (
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                        <span className="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
-                        YouTube Reports
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {YOUTUBE_REPORTS.map((report) => (
-                          <div key={report.key} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-red-300 hover:shadow-md transition-all duration-200">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-3">
-                                <span className="text-2xl">{report.icon}</span>
-                                <h5 className="font-medium text-gray-900">{report.name}</h5>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <button
-                                onClick={() => runReport('youtube', report.key)}
-                                disabled={isLoading}
-                                className="w-full px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 disabled:opacity-50 text-sm"
-                              >
-                                {isLoading ? 'Running...' : 'Run Report'}
-                              </button>
-                              <button
-                                onClick={() => loadSavedReport('youtube', report.key)}
-                                disabled={isLoading}
-                                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 text-sm"
-                              >
-                                Load Saved
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bulk Actions */}
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Bulk Actions</h4>
-                    <div className="flex space-x-4">
-                      <button
-                        onClick={handleManualDataFetch}
-                        disabled={isLoading || dataFetchInProgress}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50"
-                      >
-                        {dataFetchInProgress ? 'Fetching All Data...' : 'Fetch All Available Data'}
-                      </button>
-                      <button
-                        onClick={goToAnalyticsDashboard}
-                        className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200"
-                      >
-                        View Analytics Dashboard
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-3">
-                      Use "Fetch All Available Data" to manually refresh all reports, or go to the Analytics Dashboard for a comprehensive view.
-                    </p>
+              {connections.youtube && (
+                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                  <div className="flex items-center">
+                    <Youtube className="w-5 h-5 text-red-600 mr-2" />
+                    <span className="text-sm font-medium text-gray-900">YouTube Raporları</span>
                   </div>
+                  <span className="text-xs text-gray-600">Otomatik güncelleme</span>
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Database className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600 mb-4">Henüz veri güncellenmemiş</p>
+              <button
+                onClick={fetchAllData}
+                disabled={isLoading}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+              >
+                {isLoading ? 'Güncelleniyor...' : 'Şimdi Güncelle'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
-              {/* Connection Required Message */}
-              {!connections.ga4 && !connections.youtube && (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">🔌</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Analytics Connected</h3>
-                  <p className="text-gray-600 mb-6">
-                    Connect your GA4 or YouTube Analytics to start generating reports
-                  </p>
-                  <div className="flex justify-center space-x-4">
-                    <button
-                      onClick={() => setActiveSection('ga4')}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
-                    >
-                      Connect GA4
-                    </button>
-                    <button
-                      onClick={() => setActiveSection('youtube')}
-                      className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200"
-                    >
-                      Connect YouTube
-                    </button>
-                  </div>
-                </div>
-              )}
+  const SettingsTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">Ayarlar</h2>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Hesap Bilgileri */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Hesap Bilgileri</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input 
+                type="email" 
+                value={user?.email || ''} 
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad</label>
+              <input 
+                type="text" 
+                value={user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : ''} 
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kullanıcı Tipi</label>
+              <input 
+                type="text" 
+                value={userType === 'company' ? 'Firma' : 'Influencer'} 
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+              />
             </div>
           </div>
-        )}
-      </main>
+        </div>
 
-      {/* Footer */}
-      <footer className="bg-white/50 backdrop-blur-sm border-t border-white/20 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">I</span>
+        {/* API Yönetimi */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">API Bağlantıları</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              <div className="flex items-center">
+                <BarChart3 className="w-6 h-6 text-blue-600 mr-3" />
+                <div>
+                  <p className="font-medium text-gray-900">Google Analytics 4</p>
+                  <p className="text-sm text-gray-600">Web analytics</p>
+                </div>
               </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">
-                Infofluencer
-              </span>
+              <button
+                onClick={() => connections.ga4 ? null : startAuth('ga4')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  connections.ga4 
+                    ? 'bg-green-100 text-green-700 cursor-default' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {connections.ga4 ? 'Bağlı' : 'Bağla'}
+              </button>
             </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              <div className="flex items-center">
+                <Youtube className="w-6 h-6 text-red-600 mr-3" />
+                <div>
+                  <p className="font-medium text-gray-900">YouTube Analytics</p>
+                  <p className="text-sm text-gray-600">Video analytics</p>
+                </div>
+              </div>
+              <button
+                onClick={() => connections.youtube ? null : startAuth('youtube')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  connections.youtube 
+                    ? 'bg-green-100 text-green-700 cursor-default' 
+                    : 'bg-red-600 text-white hover:bg-red-700'
+                }`}
+              >
+                {connections.youtube ? 'Bağlı' : 'Bağla'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              <div className="flex items-center">
+                <Instagram className="w-6 h-6 text-pink-600 mr-3" />
+                <div>
+                  <p className="font-medium text-gray-900">Instagram Business</p>
+                  <p className="text-sm text-gray-600">Sosyal medya analytics</p>
+                </div>
+              </div>
+              <button
+                disabled
+                className="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg text-sm cursor-not-allowed"
+              >
+                Yakında
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Hesap İşlemleri */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Hesap İşlemleri</h3>
+          <div className="space-y-3">
+            <button className="w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-left">
+              Şifre Değiştir
+            </button>
+            <button className="w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-left">
+              Veri Dışa Aktar
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="w-full px-4 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-left flex items-center"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Oturumu Kapat
+            </button>
+          </div>
+        </div>
+
+        {/* Bildirim Ayarları */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Bildirim Ayarları</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">Email Bildirimleri</p>
+                <p className="text-sm text-gray-600">Haftalık rapor özetleri</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" defaultChecked />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">Veri Güncellemeleri</p>
+                <p className="text-sm text-gray-600">Yeni veri geldiğinde bildir</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" defaultChecked />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">Sistem Uyarıları</p>
+                <p className="text-sm text-gray-600">API hataları ve sistem mesajları</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" defaultChecked />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const InfluencerMatchingTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">Influencer Eşleştirme</h2>
+      
+      <div className="text-center py-12">
+        <UserCheck className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Influencer Eşleştirme Sistemi</h3>
+        <p className="text-gray-600 mb-6">
+          Bu özellik geliştirilme aşamasında. Yakında firmalar ve influencer'lar arasında akıllı eşleştirme yapabileceksiniz.
+        </p>
+        <div className="bg-blue-50 rounded-lg p-4 max-w-md mx-auto">
+          <h4 className="font-semibold text-blue-900 mb-2">Gelecek Özellikler:</h4>
+          <ul className="text-sm text-blue-700 text-left space-y-1">
+            <li>• Kategori bazlı filtreleme</li>
+            <li>• Takipçi sayısına göre arama</li>
+            <li>• Etkileşim oranı analizi</li>
+            <li>• Uyum puanı hesaplama</li>
+            <li>• Karşılaştırma araçları</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ComparisonTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">Karşılaştırma</h2>
+      
+      <div className="text-center py-12">
+        <Activity className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Rakip Analizi ve Karşılaştırma</h3>
+        <p className="text-gray-600 mb-6">
+          Bu bölümde rakiplerinizle karşılaştırma yapabilir ve sektördeki konumunuzu analiz edebileceksiniz.
+        </p>
+        <div className="bg-orange-50 rounded-lg p-4 max-w-md mx-auto">
+          <h4 className="font-semibold text-orange-900 mb-2">Planlanan Özellikler:</h4>
+          <ul className="text-sm text-orange-700 text-left space-y-1">
+            <li>• Rakip firma analizi</li>
+            <li>• Sektör benchmarking</li>
+            <li>• Zaman serisi karşılaştırması</li>
+            <li>• Trafik analizi</li>
+            <li>• Etkileşim karşılaştırması</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <OverviewTab />;
+      case 'reports':
+      case 'ga4':
+      case 'youtube':
+      case 'instagram':
+        return <ReportsTab />;
+      case 'influencer-matching':
+        return <InfluencerMatchingTab />;
+      case 'comparison':
+        return <ComparisonTab />;
+      case 'data-status':
+        return <DataStatusTab />;
+      case 'settings':
+      case 'profile-settings':
+        return <SettingsTab />;
+      default:
+        return (
+          <div className="text-center py-12">
+            <Settings className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Bu Sayfa Geliştiriliyor</h2>
             <p className="text-gray-600">
-              Empowering brands with data-driven influencer marketing
+              {activeTab} sayfası yakında tamamlanacak.
             </p>
           </div>
+        );
+    }
+  };
+
+  // Loading state kontrolü
+  if (isLoading && !dashboardData.lastUpdated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-200 border-t-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Dashboard yükleniyor...</p>
         </div>
-      </footer>
+      </div>
+    );
+  }
+
+  // Token kontrolü - eğer token yoksa login'e yönlendir
+  if (!getAccessToken()) {
+    navigate('/login');
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar Overlay for mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar />
+        
+        {/* Message Bar */}
+        {message && (
+          <div className={`mx-6 mt-4 p-4 rounded-lg border flex items-center justify-between ${
+            messageType === 'success'
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : messageType === 'info'
+              ? 'bg-blue-50 border-blue-200 text-blue-700' 
+              : messageType === 'warning'
+              ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+              : 'bg-red-50 border-red-200 text-red-700'
+          }`}>
+            <span>{message}</span>
+            <button 
+              onClick={() => setMessage('')}
+              className="ml-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Error Bar */}
+        {error && (
+          <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center justify-between">
+            <span>{error}</span>
+            <button 
+              onClick={() => setError('')}
+              className="ml-4 text-red-400 hover:text-red-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        
+        <main className="flex-1 p-6">
+          {renderActiveTab()}
+        </main>
+      </div>
     </div>
   );
 };

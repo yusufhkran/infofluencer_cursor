@@ -1,24 +1,52 @@
 from django.db import models
 from apps.accounts.models import CompanyProfile
 
-# Base Models
+# apps/company/models.py - GA4Token modelini kontrol edin
+
+from django.db import models
+from django.utils import timezone
+from apps.accounts.models import CompanyProfile
+
 class GA4Token(models.Model):
-    company = models.OneToOneField(CompanyProfile, on_delete=models.CASCADE, related_name='ga4_token')
+    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
     access_token = models.TextField()
     refresh_token = models.TextField(null=True, blank=True)
     token_expiry = models.DateTimeField(null=True, blank=True)
     property_id = models.CharField(max_length=50, null=True, blank=True)
-    last_data_fetch = models.DateTimeField(null=True, blank=True)  # 🆕 YENİ ALAN
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # ✅ Bu satırı ekleyin (eğer yoksa)
+    last_data_fetch = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"GA4 Token for {self.company.first_name}"
+
 class YouTubeToken(models.Model):
-    company = models.OneToOneField(CompanyProfile, on_delete=models.CASCADE, related_name='youtube_token')
+    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
     access_token = models.TextField()
     refresh_token = models.TextField(null=True, blank=True)
     token_expiry = models.DateTimeField(null=True, blank=True)
-    channel_id = models.CharField(max_length=100, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # ✅ Bu satırı da ekleyin (eğer yoksa)
+    last_data_fetch = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"YouTube Token for {self.company.first_name}"
+
+class OAuthState(models.Model):
+    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
+    provider = models.CharField(max_length=20)  # 'ga4', 'youtube', 'instagram'
+    state = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('company', 'provider')
+    
+    def __str__(self):
+        return f"{self.provider} state for {self.company.first_name}"
 
 class OAuthState(models.Model):
     company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
