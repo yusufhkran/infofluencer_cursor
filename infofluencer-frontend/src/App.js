@@ -1,20 +1,27 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import Dashboard from './pages/Dashboard';
-import './App.css';
-import AnalyticsPage from './pages/AnalyticsPage';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import Dashboard from "./pages/Dashboard";
+import "./App.css";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import OverviewPage from './pages/OverviewPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem("access_token");
   return token ? children : <Navigate to="/login" replace />;
 };
 
 // Public Route Component (redirect if already logged in)
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem("access_token");
   return token ? <Navigate to="/dashboard" replace /> : children;
 };
 
@@ -25,52 +32,54 @@ function App() {
         <Routes>
           {/* Default route - redirect to login */}
           <Route path="/" element={<Navigate to="/login" replace />} />
-          
+
           {/* Public routes - only accessible when not logged in */}
-          <Route 
-            path="/login" 
+          <Route
+            path="/login"
             element={
               <PublicRoute>
                 <LoginPage />
               </PublicRoute>
-            } 
+            }
           />
-          <Route 
-            path="/register" 
+          <Route
+            path="/register"
             element={
               <PublicRoute>
                 <RegisterPage />
               </PublicRoute>
-            } 
+            }
           />
-          
+
+          {/* Dashboard layout ve child routes */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<OverviewPage />} />
+            <Route path="influencer_discovery" element={<div>Influencer Discovery</div>} />
+            <Route path="network" element={<div>Network'üm</div>} />
+            <Route path="reports" element={<div>Raporlarım</div>} />
+            <Route path="downloads" element={<div>Downloads</div>} />
+            <Route path="plans" element={<div>Planlar & Üyelik</div>} />
+          </Route>
+
           {/* Protected routes - only accessible when logged in */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/AnalyticPage" 
+          <Route
+            path="/AnalyticPage"
             element={
               <ProtectedRoute>
                 <AnalyticsPage />
               </ProtectedRoute>
-            } 
+            }
           />
+
+          {/* Public routes - only accessible when not logged in */}
+          <Route path="/settings" element={<SettingsPage />} />
 
           {/* Catch all route - redirect to login */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-        
       </div>
     </Router>
-
-    
-
   );
 }
 

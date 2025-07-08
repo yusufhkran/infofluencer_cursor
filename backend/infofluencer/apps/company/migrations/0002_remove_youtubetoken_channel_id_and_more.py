@@ -7,33 +7,39 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0001_initial'),
-        ('company', '0001_initial'),
+        ("accounts", "0001_initial"),
+        ("company", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='youtubetoken',
-            name='channel_id',
+            model_name="youtubetoken",
+            name="channel_id",
         ),
         migrations.AddField(
-            model_name='ga4token',
-            name='last_data_fetch',
+            model_name="ga4token",
+            name="last_data_fetch",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='youtubetoken',
-            name='last_data_fetch',
+            model_name="youtubetoken",
+            name="last_data_fetch",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='ga4token',
-            name='company',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='accounts.companyprofile'),
+            model_name="ga4token",
+            name="company",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                to="accounts.companyprofile",
+            ),
         ),
         migrations.AlterField(
-            model_name='youtubetoken',
-            name='company',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='accounts.companyprofile'),
+            model_name="youtubetoken",
+            name="company",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                to="accounts.companyprofile",
+            ),
         ),
     ]
