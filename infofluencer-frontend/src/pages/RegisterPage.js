@@ -119,7 +119,7 @@ const RegisterPage = () => {
 
         // Force navigation to login
         setTimeout(() => {
-          window.location.href = "/login";
+          window.location.href = "/company_login";
         }, 500);
       } else {
         setError(result.message);
@@ -136,7 +136,7 @@ const RegisterPage = () => {
         {/* Register Header */}
         <div className="text-center mb-8">
           <Link
-            to="/"
+            to="/company_login"
             className="flex flex-col items-center justify-center mb-6"
           >
             <div className="w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center mb-3 border border-gray-100 p-3">
@@ -164,7 +164,7 @@ const RegisterPage = () => {
         <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
           <div className="mb-8">
             <Link
-              to="/login"
+              to="/company_login"
               className="flex items-center text-gray-600 hover:text-gray-800 mb-4 transition-colors"
             >
               <svg
@@ -207,7 +207,7 @@ const RegisterPage = () => {
           <p className="text-gray-700">
             Already have an account?
             <Link
-              to="/login"
+              to="/company_login"
               className="text-orange-600 font-semibold hover:text-orange-700 transition-colors ml-1"
             >
               Log in

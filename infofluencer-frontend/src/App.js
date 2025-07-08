@@ -31,11 +31,11 @@ function App() {
       <div className="App">
         <Routes>
           {/* Default route - redirect to login */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/company_login" replace />} />
 
           {/* Public routes - only accessible when not logged in */}
           <Route
-            path="/login"
+            path="/company_login"
             element={
               <PublicRoute>
                 <LoginPage />
@@ -43,7 +43,7 @@ function App() {
             }
           />
           <Route
-            path="/register"
+            path="/company_register"
             element={
               <PublicRoute>
                 <RegisterPage />
@@ -51,18 +51,17 @@ function App() {
             }
           />
 
-          {/* Dashboard layout ve child routes */}
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<OverviewPage />} />
-            <Route path="influencer_discovery" element={<div>Influencer Discovery</div>} />
-            <Route path="network" element={<div>Network'üm</div>} />
-            <Route path="reports" element={<div>Raporlarım</div>} />
-            <Route path="downloads" element={<div>Downloads</div>} />
-            <Route path="plans" element={<div>Planlar & Üyelik</div>} />
-          </Route>
+          {/* Dashboard route - protected */}
+          <Route
+            path="/dashboard/*"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Protected routes - only accessible when logged in */}
+          {/* AnalyticsPage - protected */}
           <Route
             path="/AnalyticPage"
             element={
@@ -72,11 +71,11 @@ function App() {
             }
           />
 
-          {/* Public routes - only accessible when not logged in */}
+          {/* SettingsPage - public (gerekirse protected yapılabilir) */}
           <Route path="/settings" element={<SettingsPage />} />
 
           {/* Catch all route - redirect to login */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/company_login" replace />} />
         </Routes>
       </div>
     </Router>

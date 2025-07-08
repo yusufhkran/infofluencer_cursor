@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { 
   LineChart,
   Line,
@@ -90,6 +90,7 @@ import InfluencerMatchingTab from '../components/Dashboard/InfluencerMatchingTab
 import ComparisonTab from '../components/Dashboard/ComparisonTab';
 import DataStatusTab from '../components/Dashboard/DataStatusTab';
 import SettingsTab from '../components/Dashboard/SettingsTab';
+import OverviewPage from '../pages/OverviewPage';
 
 // Bar chart renkleri
 const barColors = [
@@ -546,9 +547,25 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar onNavigate={route => navigate(route)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar connections={connections} />
+        <TopBar 
+          userType={userType}
+          user={user}
+          setSidebarOpen={setSidebarOpen}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
+          loadDashboardData={loadDashboardData}
+          isLoading={isLoading}
+          connections={connections}
+          startAuth={startAuth}
+          setActiveTab={setActiveTab}
+          handleLogout={handleLogout}
+        />
         <main className="flex-1 p-6">
-          <Outlet />
+          <Routes>
+            <Route path="/" element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<OverviewPage />} />
+            {/* Diğer child route'lar buraya eklenebilir */}
+          </Routes>
         </main>
       </div>
     </div>

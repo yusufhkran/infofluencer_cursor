@@ -6,12 +6,12 @@
  */
 
 // API base configuration
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = "http://localhost:8000";
 
 // API endpoints
 const ENDPOINTS = {
-  LOGIN: "/api/auth/login/",
-  REGISTER: "/api/auth/register/",
+  LOGIN: "/api/auth/company_login/",
+  REGISTER: "/api/auth/company_register/",
   REFRESH: "/api/auth/refresh/",
   USER_PROFILE: "/api/auth/profile/",
   LOGOUT: "/api/auth/logout/",

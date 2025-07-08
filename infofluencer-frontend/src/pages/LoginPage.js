@@ -61,7 +61,7 @@ const LoginPage = () => {
 
         {/* Logo - Top Left */}
         <div className="absolute top-8 left-8 z-20">
-          <Link to="/" className="flex items-center">
+          <Link to="/company_login" className="flex items-center">
             <div className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center mr-3 p-1">
               <img
                 src="/logo.png"
@@ -162,7 +162,7 @@ const LoginPage = () => {
           {/* Mobile Header */}
           <div className="text-center mb-8 lg:hidden">
             <Link
-              to="/"
+              to="/company_login"
               className="flex flex-col items-center justify-center mb-6"
             >
               <div className="w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center mb-3 border border-gray-100 p-3">
@@ -177,11 +177,8 @@ const LoginPage = () => {
                   }}
                 />
               </div>
-              <span
-                className="text-2xl font-light italic text-gray-800 tracking-wider"
-                style={{ fontFamily: "Georgia, serif" }}
-              >
-                infofluencer
+              <span className="text-2xl font-bold tracking-wider" style={{fontFamily: "inherit"}}>
+                <span style={{color: "#ed5f27"}}>info</span><span style={{color: "#000061"}}>fluencer</span>
               </span>
             </Link>
           </div>
@@ -189,7 +186,7 @@ const LoginPage = () => {
           {/* Desktop Logo Area */}
           <div className="hidden lg:block text-center mb-8">
             <Link
-              to="/"
+              to="/company_login"
               className="flex flex-col items-center justify-center mb-6"
             >
               <div className="w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center mb-3 border border-gray-100 p-3">
@@ -204,11 +201,8 @@ const LoginPage = () => {
                   }}
                 />
               </div>
-              <span
-                className="text-2xl font-light italic text-gray-800 tracking-wider"
-                style={{ fontFamily: "Georgia, serif" }}
-              >
-                infofluencer
+              <span className="text-2xl font-bold tracking-wider" style={{fontFamily: "inherit"}}>
+                <span style={{color: "#ed5f27"}}>info</span><span style={{color: "#000061"}}>fluencer</span>
               </span>
             </Link>
           </div>
@@ -235,7 +229,7 @@ const LoginPage = () => {
             <div className="mt-6 text-center text-sm text-gray-600">
               Don't have an account?{" "}
               <Link
-                to="/register"
+                to="/company_register"
                 className="text-orange-600 font-semibold hover:underline"
               >
                 Sign up
