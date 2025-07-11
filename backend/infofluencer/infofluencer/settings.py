@@ -107,6 +107,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Custom user model
+AUTH_USER_MODEL = 'influencer.InfluencerUser'
+
 # REST Framework ayarları
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -153,6 +156,9 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 YOUTUBE_CLIENT_ID = os.getenv('YOUTUBE_CLIENT_ID', GOOGLE_CLIENT_ID)  # Aynı client kullanılabilir
 YOUTUBE_CLIENT_SECRET = os.getenv('YOUTUBE_CLIENT_SECRET', GOOGLE_CLIENT_SECRET)
+
+META_CLIENT_ID = os.getenv('META_APP_ID')
+META_CLIENT_SECRET = os.getenv('META_APP_SECRET')
 
 # Frontend URL for redirects
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
