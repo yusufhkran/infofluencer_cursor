@@ -60,6 +60,9 @@ def user_profile(request):
             "first_name": company_profile.first_name,
             "last_name": company_profile.last_name,
             "created_at": company_profile.created_at.isoformat(),
+            "isPro": company_profile.isPro,
+            "isBasic": company_profile.isBasic,
+            "isFree": company_profile.isFree,
         }
         print(f"✅ Found company profile: {company_profile}")
     except CompanyProfile.DoesNotExist:
@@ -120,3 +123,36 @@ def logout(request):
             {"success": False, "message": "Logout failed"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def upgrade_to_pro(request):
+    user = request.user
+    try:
+        company_profile = CompanyProfile.objects.get(user=user)
+        company_profile.isPro = True
+        company_profile.isBasic = False
+        company_profile.isFree = False
+        company_profile.save()
+        return Response({"success": True, "message": "Proya geçiş başarılı."})
+    except CompanyProfile.DoesNotExist:
+        return Response({"success": False, "error": "Company profile not found."}, status=404)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def update_membership(request):
+    user = request.user
+    plan = request.data.get('plan')
+    if plan not in ['free', 'basic', 'pro']:
+        return Response({"success": False, "error": "Geçersiz plan."}, status=400)
+    try:
+        company_profile = CompanyProfile.objects.get(user=user)
+        company_profile.isPro = plan == 'pro'
+        company_profile.isBasic = plan == 'basic'
+        company_profile.isFree = plan == 'free'
+        company_profile.save()
+        return Response({"success": True, "message": f"{plan.capitalize()} üyeliğine geçiş başarılı."})
+    except CompanyProfile.DoesNotExist:
+        return Response({"success": False, "error": "Company profile not found."}, status=404)

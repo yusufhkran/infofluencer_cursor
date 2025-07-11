@@ -27,3 +27,19 @@ export async function register(registerData) {
   });
   return await response.json();
 }
+
+export function checkAndHandleJWTToken() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    // Kullanıcıyı logout et
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    // Eğer bir router varsa, login sayfasına yönlendirilebilir
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+    return false;
+  }
+  return true;
+}

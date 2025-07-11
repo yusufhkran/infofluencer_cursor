@@ -9,7 +9,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  checkConnections,
   startGA4Auth,
   startYouTubeAuth,
   saveGA4PropertyId,
@@ -18,6 +17,7 @@ import MessageBox from "../components/Analytics/MessageBox";
 import DataFetchProgress from "../components/Analytics/DataFetchProgress";
 import GA4Card from "../components/Analytics/GA4Card";
 import YouTubeCard from "../components/Analytics/YouTubeCard";
+import InstagramCard from "../components/Analytics/InstagramCard";
 import { showMessage } from "../utils/showMessage";
 
 const AnalyticsPage = () => {
@@ -32,8 +32,6 @@ const AnalyticsPage = () => {
   const [dataFetchInProgress, setDataFetchInProgress] = useState(false);
 
   useEffect(() => {
-    checkConnections();
-
     // URL'den mesaj parametrelerini kontrol et
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("ga4_connected") === "true") {
@@ -44,7 +42,6 @@ const AnalyticsPage = () => {
         "success",
       );
       window.history.replaceState({}, document.title, window.location.pathname);
-      setTimeout(checkConnections, 1000);
     }
     if (urlParams.get("youtube_connected") === "true") {
       showMessage(
@@ -54,7 +51,15 @@ const AnalyticsPage = () => {
         "success",
       );
       window.history.replaceState({}, document.title, window.location.pathname);
-      setTimeout(checkConnections, 1000);
+    }
+    if (urlParams.get("instagram_connected") === "true") {
+      showMessage(
+        setMessage,
+        setMessageType,
+        "Instagram successfully connected!",
+        "success",
+      );
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
     if (urlParams.get("error")) {
       showMessage(
@@ -223,7 +228,7 @@ const AnalyticsPage = () => {
         {/* Data Fetch Progress */}
         {dataFetchInProgress && <DataFetchProgress />}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Google Analytics 4 */}
           <GA4Card
             connected={connections.ga4}
@@ -242,6 +247,9 @@ const AnalyticsPage = () => {
             onConnect={handleYouTubeConnect}
             isLoading={isLoading}
           />
+
+          {/* Instagram Analytics */}
+          <InstagramCard />
         </div>
 
         {/* Quick Start Guide */}

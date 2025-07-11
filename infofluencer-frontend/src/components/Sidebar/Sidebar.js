@@ -9,12 +9,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const menuItems = [
-  { label: 'Overview', icon: '🏠', route: '/overview' },
-  { label: 'Influencer Discovery', icon: '🔍', route: '/discovery' },
-  { label: "Network'üm", icon: '👥', route: '/network' },
-  { label: 'Raporlarım', icon: '📊', locked: true, route: '/reports' },
-  { label: 'Downloads', icon: '⬇️', route: '/downloads' },
-  { label: 'Planlar & Üyelik', icon: '💳', route: '/plans' },
+  { label: 'Overview', route: '/overview' },
+  { label: 'Influencer Discovery', route: '/discovery' },
+  { label: "Network'üm", route: '/network' },
+  { label: 'Raporlarım', locked: true, route: '/reports' },
+  { label: 'Downloads', route: '/downloads' },
+  { label: 'Planlar & Üyelik', route: '/plans' },
 ];
 
 const settingsSubMenu = [
@@ -38,7 +38,7 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" style={{ position: 'sticky', top: 0, height: '100vh', zIndex: 10 }}>
       <nav>
         <ul>
           {menuItems.map((item) => (
@@ -48,7 +48,8 @@ const Sidebar = () => {
               onClick={() => handleMenuClick(item.route, item.locked)}
             >
               <span className="icon">{item.icon}</span>
-              <span className="label">{item.label}</span>
+              {item.icon && <span className="mr-2">{item.icon}</span>}
+              {item.label}
               {item.locked && <span className="lock">🔒</span>}
             </li>
           ))}

@@ -16,6 +16,13 @@ const LoginPage = () => {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
+    // Login sayfası açıldığında otomatik logout
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+  }, []);
+
+  useEffect(() => {
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
       window.history.replaceState({}, document.title);

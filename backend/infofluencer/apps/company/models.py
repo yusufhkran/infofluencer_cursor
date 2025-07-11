@@ -21,7 +21,7 @@ class GA4Token(models.Model):
     last_data_fetch = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"GA4 Token for {self.company.first_name}"
+        return f"GA4 Token for {self.company}"
 
 
 class YouTubeToken(models.Model):
@@ -36,29 +36,36 @@ class YouTubeToken(models.Model):
     last_data_fetch = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"YouTube Token for {self.company.first_name}"
+        return f"YouTube Token for {self.company}"
 
 
-class OAuthState(models.Model):
-    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
-    provider = models.CharField(max_length=20)  # 'ga4', 'youtube', 'instagram'
-    state = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("company", "provider")
-
-    def __str__(self):
-        return f"{self.provider} state for {self.company.first_name}"
-
-
+# --- BURAYA EKLENECEK ---
 class OAuthState(models.Model):
     company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
     provider = models.CharField(
-        max_length=20, choices=[("ga4", "GA4"), ("youtube", "YouTube")]
+        max_length=20, choices=[("ga4", "GA4"), ("youtube", "YouTube"), ("instagram", "Instagram")]
     )
     state = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.provider} state for {self.company}"
+
+
+class InstagramToken(models.Model):
+    """Instagram Graph API token modeli"""
+    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
+    access_token = models.TextField()
+    refresh_token = models.TextField(null=True, blank=True)
+    token_expiry = models.DateTimeField(null=True, blank=True)
+    instagram_business_account_id = models.CharField(max_length=100, null=True, blank=True)
+    facebook_page_id = models.CharField(max_length=100, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_data_fetch = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Instagram Token for {self.company}"
 
 
 # ===== GA4 REPORT MODELS =====
@@ -306,7 +313,7 @@ class ApiConnection(models.Model):
     provider = models.CharField(max_length=30)  # 'ga4', 'youtube', 'instagram'
     access_token = models.TextField(blank=True, null=True)
     refresh_token = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField()
     last_connected = models.DateTimeField(auto_now=True)
     # ... diğer alanlar ...
 
@@ -315,10 +322,10 @@ class NotificationPreference(models.Model):
     Kullanıcının bildirim tercihleri.
     """
     company = models.OneToOneField(CompanyProfile, on_delete=models.CASCADE)
-    email_reports = models.BooleanField(default=True)
-    campaign_end = models.BooleanField(default=True)
-    integration_error = models.BooleanField(default=True)
-    push_enabled = models.BooleanField(default=False)
+    email_reports = models.BooleanField()
+    campaign_end = models.BooleanField()
+    integration_error = models.BooleanField()
+    push_enabled = models.BooleanField()
     # ... diğer alanlar ...
 
 class SecuritySetting(models.Model):
@@ -326,7 +333,7 @@ class SecuritySetting(models.Model):
     Kullanıcının güvenlik ve şifre ayarları.
     """
     company = models.OneToOneField(CompanyProfile, on_delete=models.CASCADE)
-    two_factor_enabled = models.BooleanField(default=False)
+    two_factor_enabled = models.BooleanField()
     last_password_change = models.DateTimeField(auto_now=True)
     # ... diğer alanlar ...
 
@@ -338,5 +345,5 @@ class BillingInfo(models.Model):
     active_plan = models.CharField(max_length=30, default='free')
     card_last4 = models.CharField(max_length=4, blank=True)
     stripe_customer_id = models.CharField(max_length=100, blank=True)
-    auto_renew = models.BooleanField(default=True)
+    auto_renew = models.BooleanField()
     # ... diğer alanlar ...

@@ -8,15 +8,20 @@ import React, { useState } from 'react';
 
 const InfluencerSearchPanel = () => {
   const [username, setUsername] = useState('');
-  const [results, setResults] = useState([]); // Sonuçlar ileride API ile dolacak
+  const [showResult, setShowResult] = useState(false);
 
-  // Sticky arama barı ve örnek sonuç kutusu
   return (
     <div className="relative">
-      {/* Sticky arama barı */}
-      <div className="sticky top-0 z-10 bg-white pb-4">
+      <div className="sticky top-0 z-10 bg-white pb-0">
         <form
-          onSubmit={e => { e.preventDefault(); /* Arama fonksiyonu eklenecek */ }}
+          onSubmit={e => {
+            e.preventDefault();
+            if (username.trim() === '@ornekuser') {
+              setShowResult(true);
+            } else {
+              setShowResult(false);
+            }
+          }}
           className="flex items-center gap-2"
         >
           <input
@@ -34,19 +39,18 @@ const InfluencerSearchPanel = () => {
           </button>
         </form>
       </div>
-      {/* Sonuçlar kutusu (örnek) */}
-      <div className="mt-6 space-y-4">
-        {/* Örnek sonuç kutusu, ileride map ile çoğaltılacak */}
-        <div className="flex items-center p-4 bg-gray-50 rounded-lg shadow border">
-          <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Profil" className="w-14 h-14 rounded-full mr-4" />
+      {/* Animasyonlu influencer kartı */}
+      <div
+        className={`transition-all duration-500 overflow-hidden ${showResult ? 'max-h-40 opacity-100 mt-6' : 'max-h-0 opacity-0 mt-0'}`}
+      >
+        <div className="flex items-center bg-purple-50 rounded-xl shadow p-4 gap-4 max-w-xl">
+          <img src="/profile.png" alt="Profil" className="w-16 h-16 rounded-full object-cover border-2 border-orange-400" />
           <div className="flex-1">
-            <div className="font-bold">@ornekuser</div>
-            <div className="text-sm text-gray-500">Bio: Influencer, seyahat ve yaşam tarzı içerikleri</div>
-            <div className="text-xs text-gray-400">Gönderi: 120 | ER: %4.2</div>
-            <div className="flex gap-2 mt-2">
-              <button className="bg-blue-500 text-white px-3 py-1 rounded text-xs">Advanced Raporu Gör</button>
-            </div>
+            <div className="font-bold text-lg">@ornekuser</div>
+            <div className="text-gray-600 text-sm mb-1">Bio: Influencer, seyahat ve yaşam tarzı içerikleri</div>
+            <div className="text-gray-500 text-xs">Gönderi: 120 | ER: %4.2</div>
           </div>
+          <button className="bg-gradient-to-r from-orange-500 to-purple-500 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow hover:scale-105 transition">Advanced Raporu Gör</button>
         </div>
       </div>
     </div>

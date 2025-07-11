@@ -151,8 +151,13 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG  # Sadece development'ta
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
-YOUTUBE_CLIENT_ID = os.getenv('YOUTUBE_CLIENT_ID', GOOGLE_CLIENT_ID)  # Aynı client kullanılabilir
-YOUTUBE_CLIENT_SECRET = os.getenv('YOUTUBE_CLIENT_SECRET', GOOGLE_CLIENT_SECRET)
+# Google Analytics 4 (GA4) ve YouTube API client ayarları
+YOUTUBE_CLIENT_ID = os.getenv('YOUTUBE_CLIENT_ID')
+YOUTUBE_CLIENT_SECRET = os.getenv('YOUTUBE_CLIENT_SECRET')
+
+# Instagram Graph API ayarları
+INSTAGRAM_APP_ID = os.getenv('INSTAGRAM_APP_ID', '1731435530796803')
+INSTAGRAM_APP_SECRET = os.getenv('INSTAGRAM_APP_SECRET', 'edcf06f84f12037d7fb9dc1c2cb98837')
 
 # Frontend URL for redirects
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
@@ -170,6 +175,10 @@ YOUTUBE_SCOPES = [
     'openid',
     'https://www.googleapis.com/auth/userinfo.email'
 ]
+
+GA4_REDIRECT_URI = os.getenv('GA4_REDIRECT_URI')
+YOUTUBE_REDIRECT_URI = os.getenv('YOUTUBE_REDIRECT_URI')
+INSTAGRAM_REDIRECT_URI = os.getenv('INSTAGRAM_REDIRECT_URI', 'http://localhost:8000/api/company/auth/instagram/callback/')
 
 # OAuth için güvenlik ayarı (sadece development)
 if DEBUG:

@@ -91,6 +91,7 @@ import ComparisonTab from '../components/Dashboard/ComparisonTab';
 import DataStatusTab from '../components/Dashboard/DataStatusTab';
 import SettingsTab from '../components/Dashboard/SettingsTab';
 import OverviewPage from '../pages/OverviewPage';
+import { checkAndHandleJWTToken } from '../services/authApi';
 
 // Bar chart renkleri
 const barColors = [
@@ -98,6 +99,7 @@ const barColors = [
 ];
 
 const Dashboard = () => {
+  // HOOKLAR EN ÜSTTE
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [userType, setUserType] = useState("company");
@@ -108,15 +110,11 @@ const Dashboard = () => {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
-
-  // API bağlantı durumları
   const [connections, setConnections] = useState({
     ga4: false,
     youtube: false,
     instagram: false,
   });
-
-  // Gerçek veri state'leri
   const [dashboardData, setDashboardData] = useState({
     overview: null,
     audience: null,
@@ -125,19 +123,19 @@ const Dashboard = () => {
     hasData: false,
     lastUpdated: null,
   });
-
-  // GA4 property id kontrolü için state
   const [ga4PropertyId, setGA4PropertyId] = useState(null);
-
-  // API Base URL
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
-
-  // Token utilities
   const getAccessToken = () => localStorage.getItem("access_token");
   const getUserData = () => {
     const userData = localStorage.getItem("user_data");
     return userData ? JSON.parse(userData) : null;
   };
+
+  useEffect(() => {
+    if (!getAccessToken()) {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   // Logout fonksiyonu
   const handleLogout = () => {
@@ -189,22 +187,19 @@ const Dashboard = () => {
     try {
       const response = await apiCall("/api/company/analytics/connections/");
       if (response.success) {
-        setConnections(response.connections);
+        // Dizi -> obje dönüşümü
+        const connObj = { ga4: false, youtube: false, instagram: false };
+        (response.data || []).forEach(c => {
+          if (c.provider && c.is_active !== undefined) connObj[c.provider] = c.is_active;
+        });
+        setConnections(connObj);
       }
     } catch (error) {
       console.error("Failed to check connections:", error);
       
       // 500 hatası durumunda varsayılan değerler kullan
-      if (error.message.includes("500")) {
+      if (error.message && error.message.includes("500")) {
         console.warn("Connections endpoint not available, using defaults");
-        setConnections({
-          ga4: false,
-          youtube: false,
-          instagram: false,
-        });
-        // Kullanıcıya mesaj gösterme - bu normal bir durum olabilir
-      } else {
-        showMessage("Bağlantı durumu kontrol edilemedi", "warning");
       }
     }
   }, []);
@@ -311,6 +306,7 @@ const Dashboard = () => {
     
     checkConnections();
     loadDashboardData();
+    checkAndHandleJWTToken();
 
     // URL parametrelerini kontrol et
     const urlParams = new URLSearchParams(window.location.search);
@@ -434,7 +430,7 @@ const Dashboard = () => {
     },
     { id: "comparison", label: "Karşılaştırma", icon: Activity },
     { id: "data-status", label: "Veri Güncelleme Durumu", icon: Database },
-    { id: "connections", label: "Bağlantılar", icon: Link },
+    { id: "connections", label: "Bağlantılarım", icon: Link },
     { id: "settings", label: "Ayarlar", icon: Settings },
   ];
 
@@ -505,7 +501,7 @@ const Dashboard = () => {
     }
   };
 
-  // Loading state kontrolü
+  // HOOKLARDAN SONRA RETURN'LAR
   if (isLoading && !dashboardData.lastUpdated) {
     // Bağlantı yoksa uyarı göster
     if (!connections.ga4 && !connections.youtube) {
@@ -536,17 +532,17 @@ const Dashboard = () => {
       </div>
     );
   }
-
-  // Token kontrolü - eğer token yoksa login'e yönlendir
-  if (!getAccessToken()) {
-    navigate("/login");
-    return null;
+  if (error) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">Hata: {error}</div>;
+  }
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-600 text-xl">Kullanıcı verisi yükleniyor...</div>;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar onNavigate={route => navigate(route)} />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 ml-64">
         <TopBar 
           userType={userType}
           user={user}
@@ -564,6 +560,8 @@ const Dashboard = () => {
           <Routes>
             <Route path="/" element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<OverviewPage />} />
+            <Route path="connections" element={<ConnectionsTab />} />
+            <Route path="reports" element={<ReportsTab />} />
             {/* Diğer child route'lar buraya eklenebilir */}
           </Routes>
         </main>

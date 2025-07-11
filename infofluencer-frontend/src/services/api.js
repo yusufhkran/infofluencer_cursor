@@ -584,46 +584,24 @@ export { analyticsApi };
 const apiService = new ApiService();
 export default apiService;
 
-export async function apiCall(
-  endpoint,
-  options = {},
-  API_BASE_URL,
-  getAccessToken,
-  navigate,
-  showMessage,
-) {
-  try {
-    const token = getAccessToken();
-    if (!token) {
-      navigate("/login");
-      throw new Error("No access token");
-    }
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
+export async function apiCall(url, options = {}) {
+  const token = localStorage.getItem("access_token");
+  const headers = {
+    ...options.headers,
+    Authorization: token ? `Bearer ${token}` : undefined,
         "Content-Type": "application/json",
-        ...options.headers,
-      },
-      ...options,
-    });
-    if (response.status === 401) {
+  };
+
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401 || response.status === 403) {
+    // Token geçersiz veya süresi dolmuş, logout et
       localStorage.removeItem("access_token");
-      localStorage.removeItem("user_data");
-      navigate("/login");
-      throw new Error("Unauthorized - redirecting to login");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
+    if (typeof window !== 'undefined') {
+      window.location.href = "/login";
     }
-    if (response.status === 403) {
-      showMessage && showMessage("Bu işlem için yetkiniz bulunmuyor", "error");
-      throw new Error("Forbidden");
-    }
-    if (response.status === 500) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    return;
     }
     return await response.json();
-  } catch (error) {
-    throw error;
-  }
 }
