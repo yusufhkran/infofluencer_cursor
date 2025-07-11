@@ -88,11 +88,17 @@ export async function getYouTubeConnectionStatus() {
 // Instagram OAuth functions
 export async function startInstagramAuth() {
   const token = localStorage.getItem("access_token");
-  const response = await fetch("http://localhost:8000/api/company/auth/instagram/start/", {
-    method: "POST",
+  const response = await fetch("http://localhost:8000/api/company/auth/instagram/simple-connect/", {
+    method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
-  return await response.json();
+  // Gelen auth_url'ın içinde redirect_uri parametresi doğru mu kontrol et
+  const data = await response.json();
+  if (data.auth_url && !data.auth_url.includes("simple-callback")) {
+    // Uyarı ver, yanlış endpoint dönüyor olabilir
+    alert("Uyarı: Instagram bağlantı URL'inde simple-callback yok! Lütfen backend ayarlarını kontrol edin.");
+  }
+  return data;
 }
 
 export async function disconnectInstagram() {

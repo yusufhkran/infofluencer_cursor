@@ -184,7 +184,7 @@ YOUTUBE_SCOPES = [
 
 GA4_REDIRECT_URI = os.getenv('GA4_REDIRECT_URI')
 YOUTUBE_REDIRECT_URI = os.getenv('YOUTUBE_REDIRECT_URI')
-INSTAGRAM_REDIRECT_URI = os.getenv('INSTAGRAM_REDIRECT_URI', 'http://localhost:8000/api/company/auth/instagram/callback/')
+INSTAGRAM_REDIRECT_URI = os.getenv('INSTAGRAM_REDIRECT_URI', 'http://localhost:8000/api/company/auth/instagram/simple-callback/')
 
 # OAuth için güvenlik ayarı (sadece development)
 if DEBUG:

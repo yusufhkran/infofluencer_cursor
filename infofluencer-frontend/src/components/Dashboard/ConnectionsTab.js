@@ -190,19 +190,10 @@ const ConnectionsTab = () => {
   const handleInstagramConnect = async () => {
     setLoading(true);
     const res = await startInstagramAuth();
-    if (res && res.success && res.auth_url) {
+    if (res && res.auth_url) {
       window.location.href = res.auth_url;
     } else {
-      // Eğer access_token varsa, sayfa ve hesapları çek
-      setInstagramSelectLoading(true);
-      const pagesRes = await getInstagramPagesAndAccounts();
-      setInstagramSelectLoading(false);
-      if (pagesRes.success) {
-        setInstagramPages(pagesRes.accounts);
-        setShowInstagramSelect(true);
-      } else {
-        setInstagramSelectError(pagesRes.error || 'Instagram hesapları alınamadı.');
-      }
+      alert('Instagram bağlantısı başlatılamadı.');
     }
     setLoading(false);
   };

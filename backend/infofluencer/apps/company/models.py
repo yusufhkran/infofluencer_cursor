@@ -56,7 +56,6 @@ class InstagramToken(models.Model):
     """Instagram Graph API token modeli"""
     company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
     access_token = models.TextField()
-    refresh_token = models.TextField(null=True, blank=True)
     token_expiry = models.DateTimeField(null=True, blank=True)
     instagram_business_account_id = models.CharField(max_length=100, null=True, blank=True)
     facebook_page_id = models.CharField(max_length=100, null=True, blank=True)

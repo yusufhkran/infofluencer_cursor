@@ -23,6 +23,8 @@ from .helpers import is_known, percent_distribution, top_n
 import logging
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from uuid import uuid4
+from apps.company.models import OAuthState
 
 # OAuth ayarları
 if settings.DEBUG:
@@ -317,160 +319,6 @@ def disconnect_instagram(request):
         return Response({"success": False, "error": str(e)}, status=500)
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def start_instagram_oauth(request):
-    """Instagram OAuth akışını başlatır, kullanıcıyı Facebook'a yönlendirir."""
-    try:
-        company_profile = CompanyProfile.objects.get(user=request.user)
-        state = f"ig_{company_profile.id}_{timezone.now().timestamp()}"
-        OAuthState.objects.update_or_create(
-            company=company_profile, provider="instagram", defaults={"state": state}
-        )
-        
-        params = {
-            "client_id": settings.INSTAGRAM_APP_ID,
-            "redirect_uri": settings.INSTAGRAM_REDIRECT_URI,
-            "response_type": "code",
-            "scope": "pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights,instagram_manage_comments,business_management",
-            "state": state,
-        }
-        url = f"https://www.facebook.com/v22.0/dialog/oauth?{urlencode(params)}"
-        
-        # DEBUG LOG
-        print("INSTAGRAM OAUTH PARAMS:", params)
-        print("INSTAGRAM OAUTH REDIRECT URI:", settings.INSTAGRAM_REDIRECT_URI)
-        print("INSTAGRAM OAUTH URL:", url)
-        
-        return Response({"success": True, "auth_url": url, "state": state})
-    except Exception as e:
-        return Response({"success": False, "error": str(e)}, status=500)
-
-
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def instagram_oauth_callback(request):
-    """Instagram'dan dönen callback'i işler, token'ı kaydeder."""
-    code = request.GET.get("code")
-    state = request.GET.get("state")
-    
-    # DEBUG LOG
-    print("INSTAGRAM CALLBACK ÇALIŞTI")
-    print("INSTAGRAM CALLBACK CODE:", code)
-    print("INSTAGRAM CALLBACK STATE:", state)
-    
-    if not code or not state:
-        return Response(
-            {"success": False, "error": "Missing code or state"}, status=400
-        )
-    
-    try:
-        state_record = OAuthState.objects.get(state=state, provider="instagram")
-        company_profile = state_record.company
-        
-        # Access token al
-        data = {
-            "client_id": settings.INSTAGRAM_APP_ID,
-            "redirect_uri": settings.INSTAGRAM_REDIRECT_URI,
-            "client_secret": settings.INSTAGRAM_APP_SECRET,
-            "code": code,
-            "grant_type": "authorization_code",
-        }
-        
-        print("INSTAGRAM TOKEN REQUEST DATA:", data)
-        resp = requests.post("https://graph.facebook.com/v22.0/oauth/access_token", data=data)
-        print("INSTAGRAM TOKEN RESPONSE:", resp.status_code, resp.text)
-        
-        if resp.status_code == 200:
-            token_data = resp.json()
-            access_token = token_data.get("access_token")
-            
-            if not access_token:
-                return Response(
-                    {"success": False, "error": "Access token alınamadı"}, status=400
-                )
-            
-            # Kısa ömürlü access_token'ı uzun ömürlüye çevir
-            ll_resp = requests.get(
-                "https://graph.instagram.com/access_token",
-                params={
-                    "grant_type": "ig_exchange_token",
-                    "client_secret": settings.INSTAGRAM_APP_SECRET,
-                    "access_token": access_token
-                },
-                timeout=10
-            )
-            print("INSTAGRAM LONG-LIVED TOKEN RESPONSE:", ll_resp.status_code, ll_resp.text)
-            if ll_resp.status_code == 200:
-                ll_token_data = ll_resp.json()
-                access_token = ll_token_data.get("access_token")
-                expires_in = ll_token_data.get("expires_in", 3600)
-            else:
-                return Response({"success": False, "error": "Uzun ömürlü access token alınamadı", "details": ll_resp.text}, status=400)
-            
-            # Instagram business account ID'sini al
-            instagram_account_id = None
-            facebook_page_id = None
-            
-            try:
-                # Kullanıcının sayfalarını al
-                pages_resp = requests.get(
-                    'https://graph.facebook.com/v22.0/me/accounts',
-                    params={'access_token': access_token},
-                    timeout=10
-                )
-                
-                if pages_resp.status_code == 200:
-                    pages_data = pages_resp.json()
-                    
-                    if 'data' in pages_data and pages_data['data']:
-                        for page in pages_data['data']:
-                            page_id = page['id']
-                            page_token = page['access_token']
-                            
-                            # Instagram hesabını kontrol et
-                            ig_resp = requests.get(
-                                f'https://graph.facebook.com/v22.0/{page_id}',
-                                params={
-                                    'fields': 'connected_instagram_account',
-                                    'access_token': page_token
-                                },
-                                timeout=10
-                            )
-                            
-                            if ig_resp.status_code == 200:
-                                ig_data = ig_resp.json()
-                                
-                                if 'connected_instagram_account' in ig_data:
-                                    instagram_account_id = ig_data['connected_instagram_account']['id']
-                                    facebook_page_id = page_id
-                                    break
-            except Exception as e:
-                print(f"Instagram account detection error: {e}")
-            
-            # Token'ı kaydet
-            InstagramToken.objects.update_or_create(
-                company=company_profile,
-                defaults={
-                    "access_token": access_token,
-                    "instagram_business_account_id": instagram_account_id,
-                    "facebook_page_id": facebook_page_id,
-                    "token_expiry": timezone.now() + timezone.timedelta(seconds=expires_in),
-                },
-            )
-            
-            return redirect(settings.FRONTEND_URL + "/dashboard/connections?success=1")
-        else:
-            return Response(
-                {"success": False, "error": "Failed to fetch token"}, status=400
-            )
-    
-    except OAuthState.DoesNotExist:
-        return Response({"success": False, "error": "Invalid state"}, status=400)
-    except Exception as e:
-        return Response({"success": False, "error": str(e)}, status=500)
-
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_instagram_connection_status(request):
@@ -543,117 +391,124 @@ def get_instagram_account_details(request):
         return Response({"success": False, "error": str(e)}, status=500)
 
 
-@api_view(["GET"])
+# --- Sade Instagram Graph API bağlantısı (influencer mantığıyla) ---
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.conf import settings
+from django.http import JsonResponse
+from django.shortcuts import redirect
+import requests
+
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def list_facebook_pages_and_instagram_accounts(request):
-    """Kullanıcının sahip olduğu tüm Facebook sayfalarını ve bunlara bağlı Instagram hesaplarını listeler."""
+def company_instagram_connect(request):
+    print("DEBUG: company_instagram_connect ÇALIŞTI")
+    company_profile = CompanyProfile.objects.get(user=request.user)
+    state = f"ig_{company_profile.id}_{uuid4().hex}"
+    OAuthState.objects.update_or_create(
+        company=company_profile, provider="instagram", defaults={"state": state}
+    )
+    META_CLIENT_ID = getattr(settings, 'INSTAGRAM_APP_ID', None)
+    META_REDIRECT_URI = getattr(settings, 'INSTAGRAM_REDIRECT_URI', None)
+    META_OAUTH_SCOPES = 'pages_show_list,instagram_basic,instagram_manage_insights,pages_read_engagement'
+    META_OAUTH_URL = (
+        f'https://www.facebook.com/v20.0/dialog/oauth?client_id={META_CLIENT_ID}'
+        f'&redirect_uri={META_REDIRECT_URI}'
+        f'&scope={META_OAUTH_SCOPES}'
+        f'&response_type=code'
+        f'&state={state}'
+    )
+    return JsonResponse({'auth_url': META_OAUTH_URL})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def company_instagram_callback(request):
+    print("DEBUG: company_instagram_callback ÇALIŞTI")
+    from apps.accounts.models import CompanyProfile
+    from apps.company.models import InstagramToken, OAuthState
+    from django.utils import timezone
+    import datetime
+
+    META_CLIENT_ID = getattr(settings, 'INSTAGRAM_APP_ID', None)
+    META_CLIENT_SECRET = getattr(settings, 'INSTAGRAM_APP_SECRET', None)
+    META_REDIRECT_URI = getattr(settings, 'INSTAGRAM_REDIRECT_URI', None)
+    code = request.GET.get('code')
+    error = request.GET.get('error')
+    state = request.GET.get('state')
+    if error:
+        return JsonResponse({'error': error}, status=400)
+    if not code or not state:
+        return JsonResponse({'error': 'Yetkilendirme kodu veya state alınamadı.'}, status=400)
+    # Token alma
+    token_resp = requests.get(
+        'https://graph.facebook.com/v20.0/oauth/access_token',
+        params={
+            'client_id': META_CLIENT_ID,
+            'redirect_uri': META_REDIRECT_URI,
+            'client_secret': META_CLIENT_SECRET,
+            'code': code
+        },
+        timeout=10
+    )
+    if token_resp.status_code != 200:
+        return JsonResponse({'error': 'Token alınamadı', 'detail': token_resp.text}, status=400)
+    token_data = token_resp.json()
+    access_token = token_data.get('access_token')
+    expires_in = token_data.get('expires_in')
+    if not access_token:
+        return JsonResponse({'error': 'Access token alınamadı'}, status=400)
+    # State ile company_profile bul
     try:
-        company_profile = CompanyProfile.objects.get(user=request.user)
-        print(f"[DEBUG] Kullanıcı id: {request.user.id}, company_profile id: {company_profile.id}")
-        token = InstagramToken.objects.filter(company=company_profile).first()
-        if not token or not token.access_token:
-            print("[DEBUG] Geçerli Instagram access_token yok.")
-            return Response({"success": False, "error": "No valid Instagram access token found."}, status=400)
-        access_token = token.access_token
-        print(f"[DEBUG] Kullanılan access_token: {access_token}")
-        # Facebook sayfalarını çek
+        state_obj = OAuthState.objects.get(state=state, provider="instagram")
+        company_profile = state_obj.company
+    except OAuthState.DoesNotExist:
+        return JsonResponse({'error': 'Geçersiz state, şirket bulunamadı.'}, status=400)
+    # Business account ID ve page ID bul
+    instagram_business_account_id = None
+    facebook_page_id = None
+    try:
         pages_resp = requests.get(
-            'https://graph.facebook.com/v22.0/me/accounts',
+            'https://graph.facebook.com/v20.0/me/accounts',
             params={'access_token': access_token},
             timeout=10
         )
-        print(f"[DEBUG] Facebook /me/accounts response: {pages_resp.status_code} {pages_resp.text}")
-        if pages_resp.status_code != 200:
-            return Response({"success": False, "error": "Failed to fetch Facebook pages", "details": pages_resp.text}, status=400)
-        pages_data = pages_resp.json().get('data', [])
-        result = []
-        for page in pages_data:
-            page_id = page['id']
-            page_name = page.get('name')
-            page_token = page['access_token']
-            print(f"[DEBUG] Page: id={page_id}, name={page_name}, page_token={page_token}")
-            # Bağlı Instagram hesabını çek
-            ig_resp = requests.get(
-                f'https://graph.facebook.com/v22.0/{page_id}',
-                params={
-                    'fields': 'connected_instagram_account',
-                    'access_token': page_token
-                },
-                timeout=10
-            )
-            print(f"[DEBUG] IG resp for page {page_id}: {ig_resp.status_code} {ig_resp.text}")
-            ig_account = None
-            if ig_resp.status_code == 200:
-                ig_data = ig_resp.json()
-                if 'connected_instagram_account' in ig_data:
-                    ig_account = ig_data['connected_instagram_account']
-                    print(f"[DEBUG] Page {page_id} bağlı Instagram hesabı: {ig_account}")
-                else:
-                    print(f"[DEBUG] Page {page_id} için bağlı Instagram hesabı yok.")
-            else:
-                print(f"[DEBUG] Page {page_id} için IG API hatası: {ig_resp.status_code}")
-            result.append({
-                'page_id': page_id,
-                'page_name': page_name,
-                'instagram_account': ig_account
-            })
-        print(f"[DEBUG] Sonuç: {result}")
-        return Response({"success": True, "accounts": result})
+        print("PAGES RESP:", pages_resp.status_code, pages_resp.text)
+        if pages_resp.status_code == 200:
+            pages_data = pages_resp.json()
+            if 'data' in pages_data and pages_data['data']:
+                for page in pages_data['data']:
+                    print("PAGE:", page)
+                    page_id = page['id']
+                    page_token = page['access_token']
+                    ig_resp = requests.get(
+                        f'https://graph.facebook.com/v20.0/{page_id}',
+                        params={
+                            'fields': 'connected_instagram_account',
+                            'access_token': page_token
+                        },
+                        timeout=10
+                    )
+                    print("IG RESP:", ig_resp.status_code, ig_resp.text)
+                    if ig_resp.status_code == 200:
+                        ig_data = ig_resp.json()
+                        if 'connected_instagram_account' in ig_data and ig_data['connected_instagram_account']:
+                            instagram_business_account_id = ig_data['connected_instagram_account']['id']
+                            facebook_page_id = page_id
+                            break
     except Exception as e:
-        print(f"[DEBUG] Exception: {e}")
-        return Response({"success": False, "error": str(e)}, status=500)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def save_selected_instagram_account(request):
-    """Kullanıcının seçtiği Instagram hesabı ve Facebook sayfa ID'sini kaydeder."""
-    try:
-        company_profile = CompanyProfile.objects.get(user=request.user)
-        page_id = request.data.get('page_id')
-        instagram_account_id = request.data.get('instagram_account_id')
-        if not page_id or not instagram_account_id:
-            return Response({"success": False, "error": "page_id ve instagram_account_id zorunlu."}, status=400)
-        token = InstagramToken.objects.filter(company=company_profile).first()
-        if not token:
-            return Response({"success": False, "error": "Önce Instagram OAuth başlatılmalı."}, status=400)
-        token.instagram_business_account_id = instagram_account_id
-        token.facebook_page_id = page_id
-        token.save()
-        return Response({"success": True})
-    except Exception as e:
-        return Response({"success": False, "error": str(e)}, status=500)
-
-# ========== INSTAGRAM TOKEN REFRESH ENDPOINT =============
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def refresh_instagram_token(request):
-    """Mevcut uzun ömürlü Instagram access_token'ı yeniler ve kaydeder."""
-    try:
-        company_profile = CompanyProfile.objects.get(user=request.user)
-        token = InstagramToken.objects.filter(company=company_profile).first()
-        if not token or not token.access_token:
-            return Response({"success": False, "error": "Önce Instagram hesabı bağlanmalı."}, status=400)
-        # Token'ı yenile
-        resp = requests.get(
-            "https://graph.instagram.com/refresh_access_token",
-            params={
-                "grant_type": "ig_refresh_token",
-                "access_token": token.access_token
-            },
-            timeout=10
-        )
-        print("INSTAGRAM REFRESH TOKEN RESPONSE:", resp.status_code, resp.text)
-        if resp.status_code == 200:
-            data = resp.json()
-            token.access_token = data.get("access_token", token.access_token)
-            expires_in = data.get("expires_in", 3600)
-            token.token_expiry = timezone.now() + timezone.timedelta(seconds=expires_in)
-            token.save()
-            return Response({"success": True, "access_token": token.access_token, "expires_in": expires_in})
-        else:
-            return Response({"success": False, "error": "Token yenileme başarısız", "details": resp.text}, status=400)
-    except CompanyProfile.DoesNotExist:
-        return Response({"success": False, "error": "Company profile not found"}, status=404)
-    except Exception as e:
-        return Response({"success": False, "error": str(e)}, status=500)
+        print(f"IG business id bulma hatası: {e}")
+        pass  # Hata olursa alanlar null kalır
+    # Token'ı kaydet
+    expires_at = timezone.now() + datetime.timedelta(seconds=expires_in or 3600)
+    InstagramToken.objects.update_or_create(
+        company=company_profile,
+        defaults={
+            'access_token': access_token,
+            'token_expiry': expires_at,
+            'instagram_business_account_id': instagram_business_account_id,
+            'facebook_page_id': facebook_page_id,
+        }
+    )
+    # Kullanıcıyı frontend dashboard'a yönlendir
+    frontend_url = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')}/dashboard/connections?ig_token={access_token}&expires_in={expires_in}"
+    return redirect(frontend_url)

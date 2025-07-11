@@ -21,14 +21,11 @@ from .views_auth import (
     start_ga4_oauth,
     start_youtube_oauth,
     get_youtube_connection_status,
-    start_instagram_oauth,
-    instagram_oauth_callback,
     disconnect_instagram,
     get_instagram_connection_status,
-    list_facebook_pages_and_instagram_accounts,
-    save_selected_instagram_account,
     get_instagram_account_details,
-    refresh_instagram_token,
+    company_instagram_connect,
+    company_instagram_callback,
 )
 from .views_settings import account_info, api_connections, notification_preferences, security_settings, billing_info
 from .views_data import (
@@ -73,14 +70,9 @@ urlpatterns = [
     path("auth/ga4/disconnect/", disconnect_ga4, name="disconnect_ga4"),
     path('auth/youtube/connection/', get_youtube_connection_status, name='get_youtube_connection_status'),
     # Instagram OAuth endpoints
-    path("auth/instagram/start/", start_instagram_oauth, name="start_instagram_oauth"),
-    path("auth/instagram/callback/", instagram_oauth_callback, name="instagram_oauth_callback"),
     path("auth/instagram/disconnect/", disconnect_instagram, name="disconnect_instagram"),
     path('auth/instagram/connection/', get_instagram_connection_status, name='get_instagram_connection_status'),
-    path('auth/instagram/pages/', list_facebook_pages_and_instagram_accounts, name='list_facebook_pages_and_instagram_accounts'),
-    path('auth/instagram/save/', save_selected_instagram_account, name='save_selected_instagram_account'),
     path('auth/instagram/account/', get_instagram_account_details, name='get_instagram_account_details'),
-    path('auth/instagram/refresh/', refresh_instagram_token, name='refresh_instagram_token'),
     path('settings/account/', account_info, name='account_info'),
     path('settings/api-connections/', api_connections, name='api_connections'),
     path('settings/notifications/', notification_preferences, name='notification_preferences'),
@@ -100,4 +92,6 @@ urlpatterns += [
     path('analytics/instagram/refresh/', refresh_instagram_data, name='refresh_instagram_data'),
     path('analytics/instagram/web/', instagram_analysis_web, name='instagram_analysis_web'),
     path('analytics/connections/', api_connections, name='analytics_connections'),
+    path('auth/instagram/simple-connect/', company_instagram_connect, name='company_instagram_simple_connect'),
+    path('auth/instagram/simple-callback/', company_instagram_callback, name='company_instagram_simple_callback'),
 ]
