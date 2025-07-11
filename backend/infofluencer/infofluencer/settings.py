@@ -108,7 +108,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom user model
-AUTH_USER_MODEL = 'influencer.InfluencerUser'
+# AUTH_USER_MODEL = 'influencer.InfluencerUser'
 
 # REST Framework ayarları
 REST_FRAMEWORK = {

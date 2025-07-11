@@ -2,7 +2,6 @@
 
 from rest_framework import generics, status
 from rest_framework.response import Response
-from .models import InfluencerUser
 from .serializers import InfluencerRegisterSerializer, InfluencerLoginSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
@@ -16,6 +15,7 @@ import requests
 from .models import InstagramToken
 from .permissions import IsInfluencer
 from django.shortcuts import redirect
+from django.contrib.auth.models import User
 
 
 def get_tokens_for_user(user):
@@ -28,7 +28,7 @@ def get_tokens_for_user(user):
 
 class InfluencerRegisterView(generics.CreateAPIView):
     """Influencer kullanıcı kaydı için endpoint."""
-    queryset = InfluencerUser.objects.all()
+    queryset = User.objects.all()
     serializer_class = InfluencerRegisterSerializer
     permission_classes = [AllowAny]
 
@@ -68,7 +68,7 @@ META_OAUTH_URL = f'https://www.facebook.com/v20.0/dialog/oauth?client_id={META_C
 @permission_classes([IsAuthenticated, IsInfluencer])
 def instagram_connect(request):
     if not settings.DEBUG:
-        return HttpResponseBadRequest('Sadece geliştirme ortamında kullanılabilir.')
+        return JsonResponse({'error': 'Sadece geliştirme ortamında kullanılabilir.'}, status=400)
     return JsonResponse({'auth_url': META_OAUTH_URL})
 
 # 2. Instagram OAuth callback/token alma
@@ -76,7 +76,7 @@ def instagram_connect(request):
 @permission_classes([AllowAny])  # JWT ile korumalı olmasın!
 def instagram_callback(request):
     if not settings.DEBUG:
-        return HttpResponseBadRequest('Sadece geliştirme ortamında kullanılabilir.')
+        return JsonResponse({'error': 'Sadece geliştirme ortamında kullanılabilir.'}, status=400)
     code = request.GET.get('code')
     error = request.GET.get('error')
     if error:
@@ -110,12 +110,12 @@ def instagram_callback(request):
 @permission_classes([IsAuthenticated, IsInfluencer])
 def instagram_report(request):
     if not settings.DEBUG:
-        return HttpResponseBadRequest('Sadece geliştirme ortamında kullanılabilir.')
+        return JsonResponse({'error': 'Sadece geliştirme ortamında kullanılabilir.'}, status=400)
     user = request.user
     try:
         ig_token = InstagramToken.objects.filter(user=user).latest('created_at')
         access_token = ig_token.get_token()
-    except InstagramToken.DoesNotExist:
+    except Exception:
         return JsonResponse({'error': 'Instagram hesabı bağlı değil.'}, status=400)
     # Örnek: Profil ve medya verisi çek
     profile_url = 'https://graph.facebook.com/v20.0/me?fields=id,username,account_type,media_count&access_token=' + access_token
