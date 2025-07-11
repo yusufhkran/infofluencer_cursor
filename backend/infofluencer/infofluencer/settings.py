@@ -107,6 +107,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Custom user model
+AUTH_USER_MODEL = 'influencer.InfluencerUser'
+
 # REST Framework ayarları
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -158,6 +161,9 @@ YOUTUBE_CLIENT_SECRET = os.getenv('YOUTUBE_CLIENT_SECRET')
 # Instagram Graph API ayarları
 INSTAGRAM_APP_ID = os.getenv('INSTAGRAM_APP_ID', '1731435530796803')
 INSTAGRAM_APP_SECRET = os.getenv('INSTAGRAM_APP_SECRET', 'edcf06f84f12037d7fb9dc1c2cb98837')
+
+META_CLIENT_ID = os.getenv('META_APP_ID')
+META_CLIENT_SECRET = os.getenv('META_APP_SECRET')
 
 # Frontend URL for redirects
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
