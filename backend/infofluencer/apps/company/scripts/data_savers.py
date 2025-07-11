@@ -17,6 +17,7 @@ from ..models import (
     YouTubeTopSubscribersData,
 )
 from apps.accounts.models import CompanyProfile
+from apps.company.models import YouTubeReport
 
 
 class GA4DataSaver:
@@ -169,48 +170,31 @@ class YouTubeDataSaver:
     """YouTube Data Saver Class"""
 
     @staticmethod
-    def save_traffic_source_data(company_id, data):
-        """Save Traffic Source Data"""
+    def save_trafficSource_data(company_id, data):
         company = CompanyProfile.objects.get(id=company_id)
-        YouTubeTrafficSourceData.objects.filter(company=company).delete()
-
-        for item in data:
-            YouTubeTrafficSourceData.objects.create(
-                company=company,
-                insight_traffic_source_type=item["insightTrafficSourceType"],
-                views=item["views"],
-                average_view_duration=item["averageViewDuration"],
-                estimated_minutes_watched=item["estimatedMinutesWatched"],
-            )
+        report, _ = YouTubeReport.objects.get_or_create(company=company)
+        report_data = report.report_data or {}
+        report_data['traffic_sources'] = data
+        report.report_data = report_data
+        report.save()
 
     @staticmethod
-    def save_device_type_data(company_id, data):
-        """Save Device Type Data"""
+    def save_ageGroup_data(company_id, data):
         company = CompanyProfile.objects.get(id=company_id)
-        YouTubeDeviceTypeData.objects.filter(company=company).delete()
-
-        for item in data:
-            YouTubeDeviceTypeData.objects.create(
-                company=company,
-                device_type=item["deviceType"],
-                views=item["views"],
-                average_view_duration=item["averageViewDuration"],
-                estimated_minutes_watched=item["estimatedMinutesWatched"],
-            )
+        report, _ = YouTubeReport.objects.get_or_create(company=company)
+        report_data = report.report_data or {}
+        report_data['age_groups'] = data
+        report.report_data = report_data
+        report.save()
 
     @staticmethod
-    def save_age_group_data(company_id, data):
-        """Save Age Group Data"""
+    def save_deviceType_data(company_id, data):
         company = CompanyProfile.objects.get(id=company_id)
-        YouTubeAgeGroupData.objects.filter(company=company).delete()
-
-        for item in data:
-            YouTubeAgeGroupData.objects.create(
-                company=company,
-                age_group=item["ageGroup"],
-                gender=item["gender"],
-                viewer_percentage=item["viewerPercentage"],
-            )
+        report, _ = YouTubeReport.objects.get_or_create(company=company)
+        report_data = report.report_data or {}
+        report_data['device_types'] = data
+        report.report_data = report_data
+        report.save()
 
     @staticmethod
     def save_top_subscribers_data(company_id, data):

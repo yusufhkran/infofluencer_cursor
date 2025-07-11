@@ -37,7 +37,9 @@ from .views_data import (
     instagram_stories, 
     instagram_calculated_metrics, 
     instagram_analysis_web, 
-    refresh_instagram_data
+    refresh_instagram_data,
+    ga4_report,
+    youtube_report
 )
 
 urlpatterns = [
@@ -94,4 +96,6 @@ urlpatterns += [
     path('analytics/connections/', api_connections, name='analytics_connections'),
     path('auth/instagram/simple-connect/', company_instagram_connect, name='company_instagram_simple_connect'),
     path('auth/instagram/simple-callback/', company_instagram_callback, name='company_instagram_simple_callback'),
+    path('reports/ga4/', ga4_report, name='ga4_report'),
+    path('reports/youtube/', youtube_report, name='youtube_report'),
 ]

@@ -346,3 +346,28 @@ class BillingInfo(models.Model):
     stripe_customer_id = models.CharField(max_length=100, blank=True)
     auto_renew = models.BooleanField()
     # ... diğer alanlar ...
+
+class GA4Report(models.Model):
+    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
+    fetched_at = models.DateTimeField(auto_now_add=True)
+    report_data = models.JSONField()  # Tüm metrikler ve dimensionlar burada saklanacak
+    class Meta:
+        ordering = ['-fetched_at']
+
+class YouTubeReport(models.Model):
+    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
+    fetched_at = models.DateTimeField(auto_now_add=True)
+    report_data = models.JSONField()  # Tüm metrikler ve dimensionlar burada saklanacak
+    class Meta:
+        ordering = ['-fetched_at']
+
+class InstagramReport(models.Model):
+    company = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE)
+    fetched_at = models.DateTimeField(auto_now_add=True)
+    basic_info = models.JSONField()
+    media_data = models.JSONField()
+    demographics = models.JSONField()
+    user_insights = models.JSONField()
+    calculated_metrics = models.JSONField()
+    class Meta:
+        ordering = ['-fetched_at']
